@@ -138,7 +138,7 @@ uint8_t USBH_AllocPipe(USBH_HandleTypeDef *phost, uint8_t ep_addr)
   */
 USBH_StatusTypeDef USBH_FreePipe(USBH_HandleTypeDef *phost, uint8_t idx)
 {
-  if (idx < 11U)
+  if (idx < USBH_MAX_PIPES_NBR)
   {
     phost->Pipes[idx] &= 0x7FFFU;
   }
@@ -157,7 +157,7 @@ static uint16_t USBH_GetFreePipe(USBH_HandleTypeDef *phost)
 {
   uint8_t idx = 0U;
 
-  for (idx = 0U ; idx < 11U ; idx++)
+  for (idx = 0U ; idx < USBH_MAX_PIPES_NBR ; idx++)
   {
     if ((phost->Pipes[idx] & 0x8000U) == 0U)
     {

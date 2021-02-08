@@ -61,6 +61,14 @@ extern "C" {
 #define SetBit(VAR,POS)                               (VAR |= (1 << POS))
 #define ClrBit(VAR,POS)                               (VAR &= ((1 << POS)^255))
 
+#ifndef MIN
+#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+#endif
+
 #define LE16(addr)        (((uint16_t)(addr)[0]) | \
                            ((uint16_t)(((uint32_t)(addr)[1]) << 8)))
 
@@ -87,7 +95,11 @@ extern "C" {
 #define LE32S(addr)       ((int32_t)(LE32((addr))))
 #define LE64S(addr)       ((int64_t)(LE64((addr))))
 
+#ifndef USBH_MAX_DATA_BUFFER
+#define USBH_MAX_DATA_BUFFER                               0x400U
+#endif
 
+#define USBH_MAX_EP_PACKET_SIZE                            0x400U
 
 #define  USB_LEN_DESC_HDR                                  0x02U
 #define  USB_LEN_DEV_DESC                                  0x12U
@@ -171,7 +183,7 @@ extern "C" {
 #define  USB_EP_DIR_MSK                                    0x80U
 
 #ifndef USBH_MAX_PIPES_NBR
-#define USBH_MAX_PIPES_NBR                                15U
+#define USBH_MAX_PIPES_NBR                                 16U
 #endif /* USBH_MAX_PIPES_NBR */
 
 #define USBH_DEVICE_ADDRESS_DEFAULT                        0x00U

@@ -513,7 +513,7 @@ USBH_StatusTypeDef USBH_CDC_SetLineCoding(USBH_HandleTypeDef *phost,
 #if (osCMSIS < 0x20000U)
     (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
   }
@@ -587,7 +587,7 @@ USBH_StatusTypeDef  USBH_CDC_Transmit(USBH_HandleTypeDef *phost, uint8_t *pbuff,
 #if (osCMSIS < 0x20000U)
     (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
   }
@@ -618,7 +618,7 @@ USBH_StatusTypeDef  USBH_CDC_Receive(USBH_HandleTypeDef *phost, uint8_t *pbuff, 
 #if (osCMSIS < 0x20000U)
     (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+    (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
   }
@@ -690,7 +690,7 @@ static void CDC_ProcessTransmission(USBH_HandleTypeDef *phost)
 #if (osCMSIS < 0x20000U)
         (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-        (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+        (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
       }
@@ -705,7 +705,7 @@ static void CDC_ProcessTransmission(USBH_HandleTypeDef *phost)
 #if (osCMSIS < 0x20000U)
           (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-          (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+          (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
         }
@@ -768,7 +768,7 @@ static void CDC_ProcessReception(USBH_HandleTypeDef *phost)
 #if (osCMSIS < 0x20000U)
         (void)osMessagePut(phost->os_event, phost->os_msg, 0U);
 #else
-        (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, NULL);
+        (void)osMessageQueuePut(phost->os_event, &phost->os_msg, 0U, 0U);
 #endif
 #endif
       }
