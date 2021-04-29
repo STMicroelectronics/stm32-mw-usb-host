@@ -35,7 +35,7 @@ This table shows the correspondence between the USB Host MW version and the corr
 
 USB Host | HAL |
 ---------- | ---------- |
-Tag v3.3.z | Tag v1.1.4 ([stm32f1xx_hal_driver](https://github.com/STMicroelectronics/stm32f1xx_hal_driver))<br>Tag v1.2.4 ([stm32f2xx_hal_driver](https://github.com/STMicroelectronics/stm32f2xx_hal_driver))<br>Tag v1.7.8 ([stm32f4xx_hal_driver](https://github.com/STMicroelectronics/stm32f4xx_hal_driver))<br>Tag v1.2.8 ([stm32f7xx_hal_driver](https://github.com/STMicroelectronics/stm32f7xx_hal_driver))<br>Tag v1.4.0 ([stm32g0xx_hal_driver](https://github.com/STMicroelectronics/stm32g0xx_hal_driver))<br>Tag v1.9.0 ([stm32h7xx_hal_driver](https://github.com/STMicroelectronics/stm32h7xx_hal_driver))<br>Tag v1.12.0 ([stm32l4xx_hal_driver](https://github.com/STMicroelectronics/stm32l4xx_hal_driver))<br>(and following, if any, till next USB Host tag)
+Tag v3.y.z | Tag v1.1.4 ([stm32f1xx_hal_driver](https://github.com/STMicroelectronics/stm32f1xx_hal_driver))<br>Tag v1.2.4 ([stm32f2xx_hal_driver](https://github.com/STMicroelectronics/stm32f2xx_hal_driver))<br>Tag v1.7.8 ([stm32f4xx_hal_driver](https://github.com/STMicroelectronics/stm32f4xx_hal_driver))<br>Tag v1.2.8 ([stm32f7xx_hal_driver](https://github.com/STMicroelectronics/stm32f7xx_hal_driver))<br>Tag v1.4.0 ([stm32g0xx_hal_driver](https://github.com/STMicroelectronics/stm32g0xx_hal_driver))<br>Tag v1.9.0 ([stm32h7xx_hal_driver](https://github.com/STMicroelectronics/stm32h7xx_hal_driver))<br>Tag v1.12.0 ([stm32l4xx_hal_driver](https://github.com/STMicroelectronics/stm32l4xx_hal_driver))<br>(and following, if any, till next USB Host tag)
 
 ## Troubleshooting
 

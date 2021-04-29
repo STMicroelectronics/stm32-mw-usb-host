@@ -33,8 +33,8 @@ extern "C" {
   */
 
 /** @addtogroup USBH_LIB_CORE
-* @{
-*/
+  * @{
+  */
 
 /** @defgroup USBH_DEF
   * @brief This file is includes USB descriptors
@@ -202,12 +202,12 @@ extern "C" {
 
 
 #define USBH_CONFIGURATION_DESCRIPTOR_SIZE (USB_CONFIGURATION_DESC_SIZE \
-                                           + USB_INTERFACE_DESC_SIZE\
-                                           + (USBH_MAX_NUM_ENDPOINTS * USB_ENDPOINT_DESC_SIZE))
+                                            + USB_INTERFACE_DESC_SIZE\
+                                            + (USBH_MAX_NUM_ENDPOINTS * USB_ENDPOINT_DESC_SIZE))
 
 
 #define CONFIG_DESC_wTOTAL_LENGTH (ConfigurationDescriptorData.ConfigDescfield.\
-                                          ConfigurationDescriptor.wTotalLength)
+                                   ConfigurationDescriptor.wTotalLength)
 
 
 typedef union
