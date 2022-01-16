@@ -1179,7 +1179,7 @@ static USBH_StatusTypeDef USBH_HandleEnum(USBH_HandleTypeDef *phost)
   * @param  phost: Host Handle
   * @retval None
   */
-void  USBH_LL_SetTimer(USBH_HandleTypeDef *phost, uint32_t time)
+void USBH_LL_SetTimer(USBH_HandleTypeDef *phost, uint32_t time)
 {
   phost->Timer = time;
 }
@@ -1191,7 +1191,7 @@ void  USBH_LL_SetTimer(USBH_HandleTypeDef *phost, uint32_t time)
   * @param  phost: Host Handle
   * @retval None
   */
-void  USBH_LL_IncTimer(USBH_HandleTypeDef *phost)
+void USBH_LL_IncTimer(USBH_HandleTypeDef *phost)
 {
   phost->Timer++;
   USBH_HandleSof(phost);

@@ -157,7 +157,7 @@ static uint16_t USBH_GetFreePipe(USBH_HandleTypeDef *phost)
 {
   uint8_t idx = 0U;
 
-  for (idx = 0U ; idx < USBH_MAX_PIPES_NBR ; idx++)
+  for (idx = 0U; idx < USBH_MAX_PIPES_NBR; idx++)
   {
     if ((phost->Pipes[idx] & 0x8000U) == 0U)
     {

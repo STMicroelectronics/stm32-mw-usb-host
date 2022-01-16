@@ -257,9 +257,9 @@ typedef struct _DeviceDescriptor
   code if equal to 0xFF, the class code is vendor specified.
   Otherwise field is valid Class Code.*/
   uint8_t   bMaxPacketSize;
-  uint16_t  idVendor;      /* Vendor ID (Assigned by USB Org) */
-  uint16_t  idProduct;     /* Product ID (Assigned by Manufacturer) */
-  uint16_t  bcdDevice;     /* Device Release Number */
+  uint16_t  idVendor;       /* Vendor ID (Assigned by USB Org) */
+  uint16_t  idProduct;      /* Product ID (Assigned by Manufacturer) */
+  uint16_t  bcdDevice;      /* Device Release Number */
   uint8_t   iManufacturer;  /* Index of Manufacturer String Descriptor */
   uint8_t   iProduct;       /* Index of Product String Descriptor */
   uint8_t   iSerialNumber;  /* Index of Serial Number String Descriptor */
@@ -273,7 +273,7 @@ typedef struct _EndpointDescriptor
   uint8_t   bDescriptorType;
   uint8_t   bEndpointAddress;   /* indicates what endpoint this descriptor is describing */
   uint8_t   bmAttributes;       /* specifies the transfer type. */
-  uint16_t  wMaxPacketSize;    /* Maximum Packet Size this endpoint is capable of sending or receiving */
+  uint16_t  wMaxPacketSize;     /* Maximum Packet Size this endpoint is capable of sending or receiving */
   uint8_t   bInterval;          /* is used to specify the polling interval of certain transfers. */
 }
 USBH_EpDescTypeDef;
@@ -298,12 +298,12 @@ typedef struct _ConfigurationDescriptor
 {
   uint8_t   bLength;
   uint8_t   bDescriptorType;
-  uint16_t  wTotalLength;        /* Total Length of Data Returned */
+  uint16_t  wTotalLength;         /* Total Length of Data Returned */
   uint8_t   bNumInterfaces;       /* Number of Interfaces */
   uint8_t   bConfigurationValue;  /* Value to use as an argument to select this configuration*/
-  uint8_t   iConfiguration;       /*Index of String Descriptor Describing this configuration */
+  uint8_t   iConfiguration;       /* Index of String Descriptor Describing this configuration */
   uint8_t   bmAttributes;         /* D7 Bus Powered , D6 Self Powered, D5 Remote Wakeup , D4..0 Reserved (0)*/
-  uint8_t   bMaxPower;            /*Maximum Power Consumption */
+  uint8_t   bMaxPower;            /* Maximum Power Consumption */
   USBH_InterfaceDescTypeDef        Itf_Desc[USBH_MAX_NUM_INTERFACES];
 }
 USBH_CfgDescTypeDef;

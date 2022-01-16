@@ -103,7 +103,7 @@ EndBSPDependencies */
 USBH_StatusTypeDef USBH_MSC_SCSI_TestUnitReady(USBH_HandleTypeDef *phost,
                                                uint8_t lun)
 {
-  USBH_StatusTypeDef    error = USBH_FAIL ;
+  USBH_StatusTypeDef    error = USBH_FAIL;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
   switch (MSC_Handle->hbot.cmd_state)
@@ -146,7 +146,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_ReadCapacity(USBH_HandleTypeDef *phost,
                                               uint8_t lun,
                                               SCSI_CapacityTypeDef *capacity)
 {
-  USBH_StatusTypeDef    error = USBH_BUSY ;
+  USBH_StatusTypeDef    error = USBH_BUSY;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
   switch (MSC_Handle->hbot.cmd_state)
@@ -273,7 +273,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_RequestSense(USBH_HandleTypeDef *phost,
                                               uint8_t lun,
                                               SCSI_SenseTypeDef *sense_data)
 {
-  USBH_StatusTypeDef    error = USBH_FAIL ;
+  USBH_StatusTypeDef    error = USBH_FAIL;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
   switch (MSC_Handle->hbot.cmd_state)
@@ -334,7 +334,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Write(USBH_HandleTypeDef *phost,
                                        uint8_t *pbuf,
                                        uint32_t length)
 {
-  USBH_StatusTypeDef    error = USBH_FAIL ;
+  USBH_StatusTypeDef    error = USBH_FAIL;
 
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
@@ -356,11 +356,9 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Write(USBH_HandleTypeDef *phost,
       MSC_Handle->hbot.cbw.field.CB[4]  = (((uint8_t *)(void *)&address)[1]);
       MSC_Handle->hbot.cbw.field.CB[5]  = (((uint8_t *)(void *)&address)[0]);
 
-
       /*Transfer length */
-      MSC_Handle->hbot.cbw.field.CB[7]  = (((uint8_t *)(void *)&length)[1]) ;
-      MSC_Handle->hbot.cbw.field.CB[8]  = (((uint8_t *)(void *)&length)[0]) ;
-
+      MSC_Handle->hbot.cbw.field.CB[7]  = (((uint8_t *)(void *)&length)[1]);
+      MSC_Handle->hbot.cbw.field.CB[8]  = (((uint8_t *)(void *)&length)[0]);
 
       MSC_Handle->hbot.state = BOT_SEND_CBW;
       MSC_Handle->hbot.cmd_state = BOT_CMD_WAIT;
@@ -395,7 +393,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Read(USBH_HandleTypeDef *phost,
                                       uint8_t *pbuf,
                                       uint32_t length)
 {
-  USBH_StatusTypeDef    error = USBH_FAIL ;
+  USBH_StatusTypeDef    error = USBH_FAIL;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
   switch (MSC_Handle->hbot.cmd_state)
@@ -416,11 +414,9 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Read(USBH_HandleTypeDef *phost,
       MSC_Handle->hbot.cbw.field.CB[4]  = (((uint8_t *)(void *)&address)[1]);
       MSC_Handle->hbot.cbw.field.CB[5]  = (((uint8_t *)(void *)&address)[0]);
 
-
       /*Transfer length */
-      MSC_Handle->hbot.cbw.field.CB[7]  = (((uint8_t *)(void *)&length)[1]) ;
-      MSC_Handle->hbot.cbw.field.CB[8]  = (((uint8_t *)(void *)&length)[0]) ;
-
+      MSC_Handle->hbot.cbw.field.CB[7]  = (((uint8_t *)(void *)&length)[1]);
+      MSC_Handle->hbot.cbw.field.CB[8]  = (((uint8_t *)(void *)&length)[0]);
 
       MSC_Handle->hbot.state = BOT_SEND_CBW;
       MSC_Handle->hbot.cmd_state = BOT_CMD_WAIT;

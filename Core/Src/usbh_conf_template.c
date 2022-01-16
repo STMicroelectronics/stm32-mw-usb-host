@@ -198,7 +198,6 @@ USBH_StatusTypeDef   USBH_LL_ClosePipe(USBH_HandleTypeDef *phost, uint8_t pipe)
   *           1 : do ping active
   * @retval Status
   */
-
 USBH_StatusTypeDef   USBH_LL_SubmitURB(USBH_HandleTypeDef *phost,
                                        uint8_t pipe,
                                        uint8_t direction,
@@ -255,7 +254,6 @@ USBH_URBStateTypeDef  USBH_LL_GetURBState(USBH_HandleTypeDef *phost, uint8_t pip
   *           1 : VBUS Inactive
   * @retval Status
   */
-
 USBH_StatusTypeDef  USBH_LL_DriverVBUS(USBH_HandleTypeDef *phost, uint8_t state)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -301,13 +299,14 @@ uint8_t  USBH_LL_GetToggle(USBH_HandleTypeDef *phost, uint8_t pipe)
 
   return toggle;
 }
+
 /**
   * @brief  USBH_Delay
   *         Delay routine for the USB Host Library
   * @param  Delay: Delay in ms
   * @retval None
   */
-void  USBH_Delay(uint32_t Delay)
+void USBH_Delay(uint32_t Delay)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(Delay);

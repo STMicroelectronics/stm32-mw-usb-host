@@ -190,7 +190,7 @@ typedef struct
 
   uint8_t              Pipe;
   uint8_t              Poll;
-  uint32_t             timer ;
+  uint32_t             timer;
 
   uint8_t              asociated_as;
   uint8_t              asociated_mixer;
@@ -222,7 +222,7 @@ typedef struct
 
   uint8_t              Pipe;
   uint8_t              Poll;
-  uint32_t             timer ;
+  uint32_t             timer;
 }
 AUDIO_InterfaceControlPropTypeDef;
 

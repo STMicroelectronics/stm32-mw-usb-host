@@ -328,7 +328,7 @@ typedef struct
   uint8_t              buff[8];
   uint16_t             NotifEpSize;
 }
-CDC_CommItfTypedef ;
+CDC_CommItfTypedef;
 
 typedef struct
 {
@@ -340,7 +340,7 @@ typedef struct
   uint16_t             OutEpSize;
   uint16_t             InEpSize;
 }
-CDC_DataItfTypedef ;
+CDC_DataItfTypedef;
 
 /* Structure for CDC process */
 typedef struct _CDC_Process

@@ -729,7 +729,7 @@ static void PTP_GetObjectPropDesc(USBH_HandleTypeDef *phost, PTP_ObjectPropDescT
       opd->FORM.Enum.NumberOfValues = LE16(&data[offset]);
       offset += sizeof(uint16_t);
 
-      for (i = 0U; i < opd->FORM.Enum.NumberOfValues ; i++)
+      for (i = 0U; i < opd->FORM.Enum.NumberOfValues; i++)
       {
         PTP_GetDevicePropValue(phost, &offset, opdlen, &opd->FORM.Enum.SupportedValue[i], opd->DataType);
       }
@@ -809,7 +809,6 @@ static void PTP_GetDevicePropValue(USBH_HandleTypeDef *phost,
       break;
   }
 }
-
 
 /**
   * @brief  PTP_GetDevicePropValue

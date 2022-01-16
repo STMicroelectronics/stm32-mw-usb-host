@@ -349,7 +349,7 @@ USBH_StatusTypeDef USBH_ClrFeature(USBH_HandleTypeDef *phost, uint8_t ep_num)
   * @param  length: Length of the descriptor
   * @retval None
   */
-static void  USBH_ParseDevDesc(USBH_DevDescTypeDef *dev_desc, uint8_t *buf,
+static void USBH_ParseDevDesc(USBH_DevDescTypeDef *dev_desc, uint8_t *buf,
                                uint16_t length)
 {
   dev_desc->bLength            = *(uint8_t *)(buf +  0);
@@ -403,7 +403,7 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
 {
   USBH_CfgDescTypeDef *cfg_desc = &phost->device.CfgDesc;
   USBH_StatusTypeDef           status = USBH_OK;
-  USBH_InterfaceDescTypeDef    *pif ;
+  USBH_InterfaceDescTypeDef    *pif;
   USBH_EpDescTypeDef           *pep;
   USBH_DescHeader_t            *pdesc = (USBH_DescHeader_t *)(void *)buf;
   uint16_t                     ptr;
@@ -422,7 +422,7 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
   cfg_desc->bmAttributes        = *(uint8_t *)(buf + 7);
   cfg_desc->bMaxPower           = *(uint8_t *)(buf + 8);
 
-  /* Make sure that the Confguration descriptor's bLength is equal to USB_CONFIGURATION_DESC_SIZE */
+  /* Make sure that the Configuration descriptor's bLength is equal to USB_CONFIGURATION_DESC_SIZE */
   if (cfg_desc->bLength  != USB_CONFIGURATION_DESC_SIZE)
   {
     cfg_desc->bLength = USB_CONFIGURATION_DESC_SIZE;
@@ -512,7 +512,7 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
   * @param  buf: Buffer where the descriptor data is available
   * @retval None
   */
-static void  USBH_ParseInterfaceDesc(USBH_InterfaceDescTypeDef *if_descriptor,
+static void USBH_ParseInterfaceDesc(USBH_InterfaceDescTypeDef *if_descriptor,
                                      uint8_t *buf)
 {
   if_descriptor->bLength            = *(uint8_t *)(buf + 0);

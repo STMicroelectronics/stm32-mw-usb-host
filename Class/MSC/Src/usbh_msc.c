@@ -425,7 +425,7 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
             break;
 
           case MSC_READ_CAPACITY10:
-            scsi_status = USBH_MSC_SCSI_ReadCapacity(phost, (uint8_t)MSC_Handle->current_lun, &MSC_Handle->unit[MSC_Handle->current_lun].capacity) ;
+            scsi_status = USBH_MSC_SCSI_ReadCapacity(phost, (uint8_t)MSC_Handle->current_lun, &MSC_Handle->unit[MSC_Handle->current_lun].capacity);
 
             if (scsi_status == USBH_OK)
             {
@@ -536,7 +536,6 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
   return error;
 }
 
-
 /**
   * @brief  USBH_MSC_SOFProcess
   *         The function is for SOF state
@@ -550,6 +549,7 @@ static USBH_StatusTypeDef USBH_MSC_SOFProcess(USBH_HandleTypeDef *phost)
 
   return USBH_OK;
 }
+
 /**
   * @brief  USBH_MSC_RdWrProcess
   *         The function is for managing state machine for MSC I/O Process
@@ -560,8 +560,8 @@ static USBH_StatusTypeDef USBH_MSC_SOFProcess(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_MSC_RdWrProcess(USBH_HandleTypeDef *phost, uint8_t lun)
 {
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
-  USBH_StatusTypeDef error = USBH_BUSY ;
-  USBH_StatusTypeDef scsi_status = USBH_BUSY ;
+  USBH_StatusTypeDef error = USBH_BUSY;
+  USBH_StatusTypeDef scsi_status = USBH_BUSY;
 
   /* Switch MSC REQ state machine */
   switch (MSC_Handle->unit[lun].state)
@@ -678,7 +678,7 @@ static USBH_StatusTypeDef USBH_MSC_RdWrProcess(USBH_HandleTypeDef *phost, uint8_
   * @param  phost: Host handle
   * @retval USBH Status
   */
-uint8_t  USBH_MSC_IsReady(USBH_HandleTypeDef *phost)
+uint8_t USBH_MSC_IsReady(USBH_HandleTypeDef *phost)
 {
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
   uint8_t res;
@@ -701,7 +701,7 @@ uint8_t  USBH_MSC_IsReady(USBH_HandleTypeDef *phost)
   * @param  phost: Host handle
   * @retval logical Unit Number supported
   */
-uint8_t  USBH_MSC_GetMaxLUN(USBH_HandleTypeDef *phost)
+uint8_t USBH_MSC_GetMaxLUN(USBH_HandleTypeDef *phost)
 {
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
 
@@ -720,7 +720,7 @@ uint8_t  USBH_MSC_GetMaxLUN(USBH_HandleTypeDef *phost)
   * @param  lun: logical Unit Number
   * @retval Lun status (0: not ready / 1: ready)
   */
-uint8_t  USBH_MSC_UnitIsReady(USBH_HandleTypeDef *phost, uint8_t lun)
+uint8_t USBH_MSC_UnitIsReady(USBH_HandleTypeDef *phost, uint8_t lun)
 {
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
   uint8_t res;
