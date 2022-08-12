@@ -434,11 +434,11 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
             {
               if (MSC_Handle->unit[MSC_Handle->current_lun].state_changed == 1U)
               {
-                USBH_UsrLog("MSC Device capacity : %d Bytes", \
-                            (int32_t)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_nbr *
-                                      MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_size));
-                USBH_UsrLog("Block number : %d", (int32_t)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_nbr));
-                USBH_UsrLog("Block Size   : %d", (int32_t)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_size));
+                USBH_UsrLog("MSC Device capacity : %u Bytes", \
+                            (unsigned int)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_nbr *
+                             MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_size));
+                USBH_UsrLog("Block number : %u", (unsigned int)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_nbr));
+                USBH_UsrLog("Block Size   : %u", (unsigned int)(MSC_Handle->unit[MSC_Handle->current_lun].capacity.block_size));
               }
               MSC_Handle->unit[MSC_Handle->current_lun].state = MSC_IDLE;
               MSC_Handle->unit[MSC_Handle->current_lun].error = MSC_OK;
