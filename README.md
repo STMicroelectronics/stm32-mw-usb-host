@@ -2,10 +2,6 @@
 
 ![latest tag](https://img.shields.io/github/v/tag/STMicroelectronics/stm32_mw_usb_host.svg?color=brightgreen)
 
-## Important
-
-Release v3.5.1 addresses CVE-2021-42553.
-
 ## Overview
 
 **STM32Cube** is an STMicroelectronics original initiative to ease developers' life by reducing efforts, time and cost.
