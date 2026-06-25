@@ -164,8 +164,8 @@ static USBH_StatusTypeDef USBH_MTP_InterfaceInit(USBH_HandleTypeDef *phost)
     return USBH_FAIL;
   }
 
-  phost->pActiveClass->pData = (MTP_HandleTypeDef *)USBH_malloc(sizeof(MTP_HandleTypeDef));
-  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  phost->pActiveClassData = (MTP_HandleTypeDef *)USBH_malloc(sizeof(MTP_HandleTypeDef));
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   if (MTP_Handle == NULL)
   {
@@ -328,7 +328,7 @@ static uint8_t MTP_FindDataInEndpoint(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_MTP_InterfaceDeInit(USBH_HandleTypeDef *phost)
 {
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   if (MTP_Handle->DataOutPipe != 0U)
   {
@@ -351,10 +351,10 @@ static USBH_StatusTypeDef USBH_MTP_InterfaceDeInit(USBH_HandleTypeDef *phost)
     MTP_Handle->NotificationPipe = 0U;     /* Reset the Channel as Free */
   }
 
-  if (phost->pActiveClass->pData != NULL)
+  if (phost->pActiveClassData != NULL)
   {
-    USBH_free(phost->pActiveClass->pData);
-    phost->pActiveClass->pData = 0U;
+    USBH_free(phost->pActiveClassData);
+    phost->pActiveClassData = 0U;
   }
 
   return USBH_OK;
@@ -387,7 +387,7 @@ static USBH_StatusTypeDef USBH_MTP_ClassRequest(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_MTP_Process(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint32_t idx = 0U;
 
   switch (MTP_Handle->state)
@@ -519,7 +519,14 @@ static USBH_StatusTypeDef USBH_MTP_SOFProcess(USBH_HandleTypeDef *phost)
   */
 uint8_t USBH_MTP_IsReady(USBH_HandleTypeDef *phost)
 {
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return 0U;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   return ((uint8_t)MTP_Handle->is_ready);
 }
@@ -533,7 +540,14 @@ uint8_t USBH_MTP_IsReady(USBH_HandleTypeDef *phost)
 USBH_StatusTypeDef USBH_MTP_GetNumStorage(USBH_HandleTypeDef *phost, uint8_t *storage_num)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   if (MTP_Handle->is_ready > 0U)
   {
@@ -553,7 +567,14 @@ USBH_StatusTypeDef USBH_MTP_GetNumStorage(USBH_HandleTypeDef *phost, uint8_t *st
 USBH_StatusTypeDef USBH_MTP_SelectStorage(USBH_HandleTypeDef *phost, uint8_t storage_idx)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   if ((storage_idx < MTP_Handle->info.storids.n) && (MTP_Handle->is_ready == 1U))
   {
@@ -573,7 +594,14 @@ USBH_StatusTypeDef USBH_MTP_SelectStorage(USBH_HandleTypeDef *phost, uint8_t sto
 USBH_StatusTypeDef USBH_MTP_GetStorageInfo(USBH_HandleTypeDef *phost, uint8_t storage_idx, MTP_StorageInfoTypedef *info)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   if ((storage_idx < MTP_Handle->info.storids.n) && (MTP_Handle->is_ready == 1U))
   {
@@ -596,8 +624,17 @@ USBH_StatusTypeDef USBH_MTP_GetNumObjects(USBH_HandleTypeDef *phost,
                                           uint32_t *numobs)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
+
   if ((storage_idx < MTP_Handle->info.storids.n) && (MTP_Handle->is_ready == 1U))
   {
     while ((status = USBH_PTP_GetNumObjects(phost,
@@ -629,8 +666,16 @@ USBH_StatusTypeDef USBH_MTP_GetObjectHandles(USBH_HandleTypeDef *phost,
                                              PTP_ObjectHandlesTypedef *objecthandles)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((storage_idx < MTP_Handle->info.storids.n) && (MTP_Handle->is_ready == 1U))
   {
@@ -661,8 +706,16 @@ USBH_StatusTypeDef USBH_MTP_GetObjectInfo(USBH_HandleTypeDef *phost,
                                           PTP_ObjectInfoTypedef *objectinfo)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -689,8 +742,16 @@ USBH_StatusTypeDef USBH_MTP_DeleteObject(USBH_HandleTypeDef *phost,
                                          uint32_t objectformatcode)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -718,8 +779,16 @@ USBH_StatusTypeDef USBH_MTP_GetObject(USBH_HandleTypeDef *phost,
                                       uint8_t *object)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -749,8 +818,16 @@ USBH_StatusTypeDef USBH_MTP_GetPartialObject(USBH_HandleTypeDef *phost,
                                              uint32_t *len)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -780,8 +857,16 @@ USBH_StatusTypeDef USBH_MTP_GetObjectPropsSupported(USBH_HandleTypeDef *phost,
                                                     uint16_t *props)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -810,8 +895,16 @@ USBH_StatusTypeDef USBH_MTP_GetObjectPropDesc(USBH_HandleTypeDef *phost,
                                               PTP_ObjectPropDescTypeDef *opd)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -839,8 +932,16 @@ USBH_StatusTypeDef USBH_MTP_GetObjectPropList(USBH_HandleTypeDef *phost,
                                               uint32_t *nrofprops)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -869,8 +970,16 @@ USBH_StatusTypeDef USBH_MTP_SendObject(USBH_HandleTypeDef *phost,
                                        uint32_t size)
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {
@@ -893,7 +1002,7 @@ USBH_StatusTypeDef USBH_MTP_SendObject(USBH_HandleTypeDef *phost,
 static USBH_StatusTypeDef USBH_MTP_Events(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   switch (MTP_Handle->events.state)
   {
@@ -942,7 +1051,7 @@ static USBH_StatusTypeDef USBH_MTP_Events(USBH_HandleTypeDef *phost)
   */
 static void MTP_DecodeEvent(USBH_HandleTypeDef *phost)
 {
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   uint16_t code;
   uint32_t param1;
@@ -1034,8 +1143,16 @@ USBH_StatusTypeDef USBH_MTP_GetDevicePropDesc(USBH_HandleTypeDef *phost,
 
 {
   USBH_StatusTypeDef status = USBH_FAIL;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
-  uint32_t timeout = phost->Timer;
+  MTP_HandleTypeDef *MTP_Handle;
+  uint32_t timeout;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
+  timeout = phost->Timer;
 
   if ((MTP_Handle->is_ready) != 0U)
   {

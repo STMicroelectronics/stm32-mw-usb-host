@@ -57,11 +57,6 @@
 /** @defgroup USBH_CORE_Private_Variables
   * @{
   */
-#if (USBH_USE_OS == 1U)
-#if (osCMSIS >= 0x20000U)
-osThreadAttr_t USBH_Thread_Atrr;
-#endif
-#endif /* (USBH_USE_OS == 1U) */
 
 
 /**
@@ -96,6 +91,10 @@ USBH_StatusTypeDef USBH_Init(USBH_HandleTypeDef *phost,
                              void (*pUsrFunc)(USBH_HandleTypeDef *phost,
                                               uint8_t id), uint8_t id)
 {
+#if (USBH_USE_OS == 1U) && (osCMSIS >= 0x20000U)
+  osThreadAttr_t USBH_Thread_Atrr = {0};
+#endif /* (USBH_USE_OS == 1U) && (osCMSIS >= 0x20000U) */
+
   /* Check whether the USB Host handle is valid */
   if (phost == NULL)
   {

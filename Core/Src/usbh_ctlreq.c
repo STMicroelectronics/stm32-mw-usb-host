@@ -700,6 +700,11 @@ static void USBH_ParseStringDesc(uint8_t *psrc, uint8_t *pdest, uint16_t length)
   {
     /* Make sure the Descriptor is String Type */
 
+    if (psrc[0] < 2U)
+    {
+      return;
+    }
+
     /* psrc[0] contains Size of Descriptor, subtract 2 to get the length of string */
     strlength = ((((uint16_t)psrc[0] - 2U) <= length) ? ((uint16_t)psrc[0] - 2U) : length);
 
@@ -727,10 +732,16 @@ static void USBH_ParseStringDesc(uint8_t *psrc, uint8_t *pdest, uint16_t length)
 USBH_DescHeader_t *USBH_GetNextDesc(uint8_t *pbuf, uint16_t *ptr)
 {
   USBH_DescHeader_t *pnext;
+  uint8_t bLength;
 
-  *ptr += ((USBH_DescHeader_t *)(void *)pbuf)->bLength;
-  pnext = (USBH_DescHeader_t *)(void *)((uint8_t *)(void *)pbuf + \
-                                        ((USBH_DescHeader_t *)(void *)pbuf)->bLength);
+  bLength = ((USBH_DescHeader_t *)(void *)pbuf)->bLength;
+  if (bLength < USB_LEN_DESC_HDR)
+  {
+    bLength = USB_LEN_DESC_HDR;
+  }
+
+  *ptr += bLength;
+  pnext = (USBH_DescHeader_t *)(void *)((uint8_t *)(void *)pbuf + bLength);
 
   return (pnext);
 }

@@ -332,6 +332,9 @@ typedef struct
   /* object pointer */
   uint8_t *object_ptr;
 
+  /* caller object buffer capacity in bytes */
+  uint32_t object_max;
+
 }
 PTP_HandleTypeDef;
 
@@ -350,6 +353,8 @@ PTP_HandleTypeDef;
 #define PTP_CAPTURE_FORMATS_NBR                           100U
 #define PTP_IMAGE_FORMATS_NBR                             100U
 #define PTP_MAX_STR_SIZE                                  255U
+#define PTP_MAX_NUM_PROPS                                 100U
+
 /* PTP device info structure */
 typedef struct
 {

@@ -205,24 +205,28 @@ typedef struct
 } FIFO_TypeDef;
 
 
+
+
 /* Structure for HID process */
 typedef struct _HID_Process
 {
+  USBH_HID_StateTypeDef     state;
+  HID_CtlStateTypeDef       ctl_state;
+  HID_DescTypeDef           HID_Desc;
+  HID_KEYBD_Info_TypeDef    keybd_info;
+  HID_MOUSE_Info_TypeDef    mouse_info;
+  FIFO_TypeDef              fifo;
   uint8_t              OutPipe;
   uint8_t              InPipe;
-  USBH_HID_StateTypeDef     state;
   uint8_t              OutEp;
   uint8_t              InEp;
-  HID_CtlStateTypeDef  ctl_state;
-  FIFO_TypeDef         fifo;
-  uint8_t              *pData;
-  uint16_t             length;
   uint8_t              ep_addr;
-  uint16_t             poll;
-  uint32_t             timer;
   uint8_t              DataReady;
   uint8_t              current_interface;
-  HID_DescTypeDef      HID_Desc;
+  uint8_t              *pData;
+  uint16_t             length;
+  uint16_t             poll;
+  uint32_t             timer;
   USBH_StatusTypeDef(* Init)(USBH_HandleTypeDef *phost);
 }
 HID_HandleTypeDef;
@@ -282,13 +286,13 @@ USBH_StatusTypeDef USBH_HID_SetReport(USBH_HandleTypeDef *phost,
                                       uint8_t reportType,
                                       uint8_t reportId,
                                       uint8_t *reportBuff,
-                                      uint8_t reportLen);
+                                      uint16_t reportLen);
 
 USBH_StatusTypeDef USBH_HID_GetReport(USBH_HandleTypeDef *phost,
                                       uint8_t reportType,
                                       uint8_t reportId,
                                       uint8_t *reportBuff,
-                                      uint8_t reportLen);
+                                      uint16_t reportLen);
 
 USBH_StatusTypeDef USBH_HID_GetHIDReportDescriptor(USBH_HandleTypeDef *phost,
                                                    uint16_t length);

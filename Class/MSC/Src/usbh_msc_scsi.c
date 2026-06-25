@@ -103,7 +103,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_TestUnitReady(USBH_HandleTypeDef *phost,
                                                uint8_t lun)
 {
   USBH_StatusTypeDef error = USBH_FAIL;
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -146,7 +146,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_ReadCapacity(USBH_HandleTypeDef *phost,
                                               SCSI_CapacityTypeDef *capacity)
 {
   USBH_StatusTypeDef error = USBH_BUSY;
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -179,6 +179,11 @@ USBH_StatusTypeDef USBH_MSC_SCSI_ReadCapacity(USBH_HandleTypeDef *phost,
 
         /* Assign the page length */
         capacity->block_size = (uint16_t)(MSC_Handle->hbot.pbuf[7] | ((uint32_t)MSC_Handle->hbot.pbuf[6] << 8U));
+
+        if ((capacity->block_size == 0U) || (capacity->block_size > 4096U))
+        {
+          error = USBH_NOT_SUPPORTED;
+        }
       }
       break;
 
@@ -201,7 +206,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Inquiry(USBH_HandleTypeDef *phost, uint8_t lun,
                                          SCSI_StdInquiryDataTypeDef *inquiry)
 {
   USBH_StatusTypeDef error = USBH_FAIL;
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -273,7 +278,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_RequestSense(USBH_HandleTypeDef *phost,
                                               SCSI_SenseTypeDef *sense_data)
 {
   USBH_StatusTypeDef error = USBH_FAIL;
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -341,13 +346,20 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Write(USBH_HandleTypeDef *phost,
 {
   USBH_StatusTypeDef    error = USBH_FAIL;
 
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
     case BOT_CMD_SEND:
 
       /* Prepare the CBW and relevant field */
+      if ((MSC_Handle->unit[lun].capacity.block_size == 0U) ||
+          (length > (0xFFFFFFFFU / (uint32_t)MSC_Handle->unit[lun].capacity.block_size)))
+      {
+        error = USBH_FAIL;
+        break;
+      }
+
       MSC_Handle->hbot.cbw.field.DataTransferLength = length * MSC_Handle->unit[lun].capacity.block_size;
       MSC_Handle->hbot.cbw.field.Flags = USB_EP_DIR_OUT;
       MSC_Handle->hbot.cbw.field.CBLength = CBW_LENGTH_10;
@@ -401,13 +413,20 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Read(USBH_HandleTypeDef *phost,
                                       uint32_t length)
 {
   USBH_StatusTypeDef error = USBH_FAIL;
-  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClass->pData;
+  MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
     case BOT_CMD_SEND:
 
       /* Prepare the CBW and relevant field */
+      if ((MSC_Handle->unit[lun].capacity.block_size == 0U) ||
+          (length > (0xFFFFFFFFU / (uint32_t)MSC_Handle->unit[lun].capacity.block_size)))
+      {
+        error = USBH_FAIL;
+        break;
+      }
+
       MSC_Handle->hbot.cbw.field.DataTransferLength = length * MSC_Handle->unit[lun].capacity.block_size;
       MSC_Handle->hbot.cbw.field.Flags = USB_EP_DIR_IN;
       MSC_Handle->hbot.cbw.field.CBLength = CBW_LENGTH_10;

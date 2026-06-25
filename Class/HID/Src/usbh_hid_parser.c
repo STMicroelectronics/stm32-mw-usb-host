@@ -125,7 +125,7 @@ uint32_t HID_ReadItem(HID_Report_ItemTypedef *ri, uint8_t ndx)
   /* read data bytes in little endian order */
   for (x = 0U; x < (((ri->size & 0x7U) != 0U) ? ((ri->size / 8U) + 1U) : (ri->size / 8U)); x++)
   {
-    val = (uint32_t)((uint32_t)(*data) << (x * 8U));
+    val |= (uint32_t)((uint32_t)(*(data + x)) << (x * 8U));
   }
   val = (val >> shift) & (((uint32_t)1U << ri->size) - 1U);
 
@@ -180,10 +180,9 @@ uint32_t HID_WriteItem(HID_Report_ItemTypedef *ri, uint32_t value, uint8_t ndx)
   /* if this is an array, we may need to offset ri->data.*/
   if (ri->count > 0U)
   {
-    /* If app tries to read outside of the array. */
-    if (ri->count >= ndx)
+    if (ri->count <= ndx)
     {
-      return (0U);
+      return (1U);
     }
     /* calculate bit offset */
     bofs = ndx * ri->size;
@@ -206,8 +205,8 @@ uint32_t HID_WriteItem(HID_Report_ItemTypedef *ri, uint32_t value, uint8_t ndx)
 
   for (x = 0U; x < (((ri->size & 0x7U) != 0U) ? ((ri->size / 8U) + 1U) : (ri->size / 8U)); x++)
   {
-    *(ri->data + x) = (uint8_t)((*(ri->data + x) & ~(mask >> (x * 8U))) |
-                                ((value >> (x * 8U)) & (mask >> (x * 8U))));
+    *(data + x) = (uint8_t)((*(data + x) & ~(mask >> (x * 8U))) |
+                             ((value >> (x * 8U)) & (mask >> (x * 8U))));
   }
 
   return 0U;

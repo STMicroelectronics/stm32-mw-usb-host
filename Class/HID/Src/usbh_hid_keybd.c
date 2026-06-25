@@ -91,7 +91,6 @@ static USBH_StatusTypeDef USBH_HID_KeybdDecode(USBH_HandleTypeDef *phost);
 /** @defgroup USBH_HID_KEYBD_Private_Variables
   * @{
   */
-
 HID_KEYBD_Info_TypeDef    keybd_info;
 uint8_t                   keybd_rx_report_buf[USBH_HID_KEYBD_REPORT_SIZE];
 uint8_t                   keybd_report_data[USBH_HID_KEYBD_REPORT_SIZE];
@@ -294,9 +293,9 @@ static const uint8_t HID_KEYBRD_ShiftKey[] =
 
 static const uint8_t HID_KEYBRD_Key[] =
 {
-  /*  0 */ '\0',  /*  1 */ '²',   /*  2 */ '&',   /*  3 */ 'é',
+  /*  0 */ '\0',  /*  1 */ 'Â²',   /*  2 */ '&',   /*  3 */ 'ï¿½',
   /*  4 */ '"',   /*  5 */ '\'',  /*  6 */ '(',   /*  7 */ '-',
-  /*  8 */ 'è',   /*  9 */ '_',   /* 10 */ 'ç',   /* 11 */ 'à',
+  /*  8 */ 'Ã¨',   /*  9 */ '_',   /* 10 */ 'Ã§',   /* 11 */ 'Ã ',
   /* 12 */ ')',   /* 13 */ '=',   /* 14 */ '\0',  /* 15 */ '\b',
   /* 16 */ '\t',  /* 17 */ 'a',   /* 18 */ 'z',   /* 19 */ 'e',
   /* 20 */ 'r',   /* 21 */ 't',   /* 22 */ 'y',   /* 23 */ 'u',
@@ -304,7 +303,7 @@ static const uint8_t HID_KEYBRD_Key[] =
   /* 28 */ '$',   /* 29 */ '\\',  /* 30 */ '\0',  /* 31 */ 'q',
   /* 32 */ 's',   /* 33 */ 'd',   /* 34 */ 'f',   /* 35 */ 'g',
   /* 36 */ 'h',   /* 37 */ 'j',   /* 38 */ 'k',   /* 39 */ 'l',
-  /* 40 */ 'm',   /* 41 */ 'ù',   /* 42 */ '*',   /* 43 */ '\n',
+  /* 40 */ 'm',   /* 41 */ 'Ã¹',   /* 42 */ '*',   /* 43 */ '\n',
   /* 44 */ '\0',  /* 45 */ '<',   /* 46 */ 'w',   /* 47 */ 'x',
   /* 48 */ 'c',   /* 49 */ 'v',   /* 50 */ 'b',   /* 51 */ 'n',
   /* 52 */ ',',   /* 53 */ ';',   /* 54 */ ':',   /* 55 */ '!',
@@ -334,17 +333,17 @@ static const uint8_t HID_KEYBRD_ShiftKey[] =
   /*  0 */ '\0',  /*  1 */ '\0',  /*  2 */ '1',   /*  3 */ '2',
   /*  4 */ '3',   /*  5 */ '4',   /*  6 */ '5',   /*  7 */ '6',
   /*  8 */ '7',   /*  9 */ '8',   /* 10 */ '9',   /* 11 */ '0',
-  /* 12 */ '°',   /* 13 */ '+',   /* 14 */ '\0',  /* 15 */ '\b',
+  /* 12 */ 'Â°',   /* 13 */ '+',   /* 14 */ '\0',  /* 15 */ '\b',
   /* 16 */ '\t',  /* 17 */ 'A',   /* 18 */ 'Z',   /* 19 */ 'E',
   /* 20 */ 'R',   /* 21 */ 'T',   /* 22 */ 'Y',   /* 23 */ 'U',
-  /* 24 */ 'I',   /* 25 */ 'O',   /* 26 */ 'P',   /* 27 */ '¨',
-  /* 28 */ '£',   /* 29 */ 'µ',   /* 30 */ '\0',  /* 31 */ 'Q',
+  /* 24 */ 'I',   /* 25 */ 'O',   /* 26 */ 'P',   /* 27 */ 'Â¨',
+  /* 28 */ 'Â£',   /* 29 */ 'Âµ',   /* 30 */ '\0',  /* 31 */ 'Q',
   /* 32 */ 'S',   /* 33 */ 'D',   /* 34 */ 'F',   /* 35 */ 'G',
   /* 36 */ 'H',   /* 37 */ 'J',   /* 38 */ 'K',   /* 39 */ 'L',
-  /* 40 */ 'M',   /* 41 */ '%',   /* 42 */ 'µ',   /* 43 */ '\n',
+  /* 40 */ 'M',   /* 41 */ '%',   /* 42 */ 'Âµ',   /* 43 */ '\n',
   /* 44 */ '\0',  /* 45 */ '>',   /* 46 */ 'W',   /* 47 */ 'X',
   /* 48 */ 'C',   /* 49 */ 'V',   /* 50 */ 'B',   /* 51 */ 'N',
-  /* 52 */ '?',   /* 53 */ '.',   /* 54 */ '/',   /* 55 */ '§',
+  /* 52 */ '?',   /* 53 */ '.',   /* 54 */ '/',   /* 55 */ 'Â§',
   /* 56 */ '\0',  /* 57 */ '\0',  /* 58 */ '\0',  /* 59 */ '\0',
   /* 60 */ '\0',  /* 61 */ ' ',   /* 62 */ '\0',  /* 63 */ '\0',
   /* 64 */ '\0',  /* 65 */ '\0',  /* 66 */ '\0',  /* 67 */ '\0',
@@ -409,16 +408,16 @@ static  const  uint8_t  HID_KEYBRD_Codes[] =
 USBH_StatusTypeDef USBH_HID_KeybdInit(USBH_HandleTypeDef *phost)
 {
   uint32_t x;
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
-  keybd_info.lctrl = 0U;
-  keybd_info.lshift = 0U;
-  keybd_info.lalt = 0U;
-  keybd_info.lgui = 0U;
-  keybd_info.rctrl = 0U;
-  keybd_info.rshift = 0U;
-  keybd_info.ralt = 0U;
-  keybd_info.rgui = 0U;
+  HID_Handle->keybd_info.lctrl = 0U;
+  HID_Handle->keybd_info.lshift = 0U;
+  HID_Handle->keybd_info.lalt = 0U;
+  HID_Handle->keybd_info.lgui = 0U;
+  HID_Handle->keybd_info.rctrl = 0U;
+  HID_Handle->keybd_info.rshift = 0U;
+  HID_Handle->keybd_info.ralt = 0U;
+  HID_Handle->keybd_info.rgui = 0U;
 
   for (x = 0U; x < sizeof(keybd_report_data); x++)
   {
@@ -453,9 +452,17 @@ USBH_StatusTypeDef USBH_HID_KeybdInit(USBH_HandleTypeDef *phost)
   */
 HID_KEYBD_Info_TypeDef *USBH_HID_GetKeybdInfo(USBH_HandleTypeDef *phost)
 {
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
+
+  if (HID_Handle == NULL)
+  {
+    return NULL;
+  }
+
   if (USBH_HID_KeybdDecode(phost) == USBH_OK)
   {
-    return &keybd_info;
+    keybd_info = HID_Handle->keybd_info;
+    return &HID_Handle->keybd_info;
   }
   else
   {
@@ -473,7 +480,7 @@ static USBH_StatusTypeDef USBH_HID_KeybdDecode(USBH_HandleTypeDef *phost)
 {
   uint8_t x;
 
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
   if ((HID_Handle->length == 0U) || (HID_Handle->fifo.buf == NULL))
   {
@@ -483,18 +490,18 @@ static USBH_StatusTypeDef USBH_HID_KeybdDecode(USBH_HandleTypeDef *phost)
   /*Fill report */
   if (USBH_HID_FifoRead(&HID_Handle->fifo, &keybd_report_data, HID_Handle->length) ==  HID_Handle->length)
   {
-    keybd_info.lctrl = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lctrl, 0U);
-    keybd_info.lshift = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lshift, 0U);
-    keybd_info.lalt = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lalt, 0U);
-    keybd_info.lgui = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lgui, 0U);
-    keybd_info.rctrl = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rctrl, 0U);
-    keybd_info.rshift = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rshift, 0U);
-    keybd_info.ralt = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_ralt, 0U);
-    keybd_info.rgui = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rgui, 0U);
+    HID_Handle->keybd_info.lctrl = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lctrl, 0U);
+    HID_Handle->keybd_info.lshift = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lshift, 0U);
+    HID_Handle->keybd_info.lalt = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lalt, 0U);
+    HID_Handle->keybd_info.lgui = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_lgui, 0U);
+    HID_Handle->keybd_info.rctrl = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rctrl, 0U);
+    HID_Handle->keybd_info.rshift = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rshift, 0U);
+    HID_Handle->keybd_info.ralt = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_ralt, 0U);
+    HID_Handle->keybd_info.rgui = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_rgui, 0U);
 
-    for (x = 0U; x < sizeof(keybd_info.keys); x++)
+    for (x = 0U; x < sizeof(HID_Handle->keybd_info.keys); x++)
     {
-      keybd_info.keys[x] = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_key_array, x);
+      HID_Handle->keybd_info.keys[x] = (uint8_t)HID_ReadItem((HID_Report_ItemTypedef *) &imp_0_key_array, x);
     }
 
     return USBH_OK;
@@ -512,14 +519,33 @@ static USBH_StatusTypeDef USBH_HID_KeybdDecode(USBH_HandleTypeDef *phost)
 uint8_t USBH_HID_GetASCIICode(HID_KEYBD_Info_TypeDef *info)
 {
   uint8_t output;
+  uint8_t code;
+
+  /* Reject any value outside HID_KEYBRD_Codes[] before indexing */
+  if (info->keys[0] >= sizeof(HID_KEYBRD_Codes))
+  {
+    return 0U;
+  }
+
+  code = HID_KEYBRD_Codes[info->keys[0]];
 
   if ((info->lshift != 0U) || (info->rshift != 0U))
   {
-    output = HID_KEYBRD_ShiftKey[HID_KEYBRD_Codes[info->keys[0]]];
+    if (code >= sizeof(HID_KEYBRD_ShiftKey))
+    {
+      return 0U;
+    }
+
+    output = HID_KEYBRD_ShiftKey[code];
   }
   else
   {
-    output = HID_KEYBRD_Key[HID_KEYBRD_Codes[info->keys[0]]];
+    if (code >= sizeof(HID_KEYBRD_Key))
+    {
+      return 0U;
+    }
+
+    output = HID_KEYBRD_Key[code];
   }
   return output;
 }

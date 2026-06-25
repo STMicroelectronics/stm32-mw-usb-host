@@ -25,8 +25,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbh_hid.h"
-#include "usbh_hid_keybd.h"
+#include "usbh_def.h"
 
 /** @addtogroup USBH_LIB
   * @{
@@ -49,8 +48,24 @@ extern "C" {
 /** @defgroup USBH_HID_KEYBD_Exported_Types
   * @{
   */
+
+typedef struct _HID_KEYBD_Info
+{
+  uint8_t state;
+  uint8_t lctrl;
+  uint8_t lshift;
+  uint8_t lalt;
+  uint8_t lgui;
+  uint8_t rctrl;
+  uint8_t rshift;
+  uint8_t ralt;
+  uint8_t rgui;
+  uint8_t keys[6];
+}
+HID_KEYBD_Info_TypeDef;
+
 #ifndef USBH_HID_KEYBD_REPORT_SIZE
-#define USBH_HID_KEYBD_REPORT_SIZE                       0x8U
+#define USBH_HID_KEYBD_REPORT_SIZE             0x8U
 #endif /* USBH_HID_KEYBD_REPORT_SIZE */
 
 #define KEY_NONE                               0x00
@@ -273,20 +288,6 @@ extern "C" {
 #define KEY_RIGHTALT                           0xE6
 #define KEY_RIGHT_GUI                          0xE7
 
-typedef struct
-{
-  uint8_t state;
-  uint8_t lctrl;
-  uint8_t lshift;
-  uint8_t lalt;
-  uint8_t lgui;
-  uint8_t rctrl;
-  uint8_t rshift;
-  uint8_t ralt;
-  uint8_t rgui;
-  uint8_t keys[6];
-}
-HID_KEYBD_Info_TypeDef;
 
 USBH_StatusTypeDef USBH_HID_KeybdInit(USBH_HandleTypeDef *phost);
 HID_KEYBD_Info_TypeDef *USBH_HID_GetKeybdInfo(USBH_HandleTypeDef *phost);

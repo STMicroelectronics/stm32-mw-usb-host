@@ -204,8 +204,8 @@ static USBH_StatusTypeDef USBH_AUDIO_InterfaceInit(USBH_HandleTypeDef *phost)
     return USBH_FAIL;
   }
 
-  phost->pActiveClass->pData = (AUDIO_HandleTypeDef *)USBH_malloc(sizeof(AUDIO_HandleTypeDef));
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  phost->pActiveClassData = (AUDIO_HandleTypeDef *)USBH_malloc(sizeof(AUDIO_HandleTypeDef));
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   if (AUDIO_Handle == NULL)
   {
@@ -336,7 +336,7 @@ static USBH_StatusTypeDef USBH_AUDIO_InterfaceInit(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_AUDIO_InterfaceDeInit(USBH_HandleTypeDef *phost)
 {
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   if (AUDIO_Handle->microphone.Pipe != 0x00U)
   {
@@ -359,10 +359,10 @@ static USBH_StatusTypeDef USBH_AUDIO_InterfaceDeInit(USBH_HandleTypeDef *phost)
     AUDIO_Handle->control.Pipe = 0U;     /* Reset the pipe as Free */
   }
 
-  if ((phost->pActiveClass->pData) != 0U)
+  if ((phost->pActiveClassData) != 0U)
   {
-    USBH_free(phost->pActiveClass->pData);
-    phost->pActiveClass->pData = 0U;
+    USBH_free(phost->pActiveClassData);
+    phost->pActiveClassData = 0U;
   }
   return USBH_OK;
 }
@@ -377,7 +377,7 @@ static USBH_StatusTypeDef USBH_AUDIO_InterfaceDeInit(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_AUDIO_ClassRequest(USBH_HandleTypeDef *phost)
 {
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef status = USBH_BUSY;
   USBH_StatusTypeDef req_status = USBH_BUSY;
 
@@ -545,7 +545,7 @@ static USBH_StatusTypeDef USBH_AUDIO_ClassRequest(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_AUDIO_CSRequest(USBH_HandleTypeDef *phost,
                                                uint8_t feature, uint8_t channel)
 {
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef status = USBH_BUSY;
   USBH_StatusTypeDef req_status = USBH_BUSY;
   uint16_t VolumeCtl, ResolutionCtl;
@@ -641,7 +641,7 @@ static USBH_StatusTypeDef USBH_AUDIO_HandleCSRequest(USBH_HandleTypeDef *phost)
 
   USBH_StatusTypeDef status = USBH_BUSY;
   USBH_StatusTypeDef cs_status = USBH_BUSY;
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   cs_status = USBH_AUDIO_CSRequest(phost,
                                    AUDIO_Handle->temp_feature,
@@ -679,7 +679,7 @@ static USBH_StatusTypeDef USBH_AUDIO_HandleCSRequest(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_AUDIO_Process(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *)  phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *)  phost->pActiveClassData;
 
   if (AUDIO_Handle->headphone.supported == 1U)
   {
@@ -718,7 +718,7 @@ static USBH_StatusTypeDef USBH_AUDIO_FindAudioStreamingIN(USBH_HandleTypeDef *ph
   USBH_StatusTypeDef status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /* Look For AUDIOSTREAMING IN interface */
   alt_settings = 0U;
@@ -730,6 +730,11 @@ static USBH_StatusTypeDef USBH_AUDIO_FindAudioStreamingIN(USBH_HandleTypeDef *ph
       if (((phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress & 0x80U) != 0U) &&
           (phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].wMaxPacketSize > 0U))
       {
+        if (alt_settings >= AUDIO_MAX_AUDIO_STD_INTERFACE)
+        {
+          break;
+        }
+
         AUDIO_Handle->stream_in[alt_settings].Ep = phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress;
         AUDIO_Handle->stream_in[alt_settings].EpSize = phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].wMaxPacketSize;
         AUDIO_Handle->stream_in[alt_settings].interface = phost->device.CfgDesc.Itf_Desc[interface].bInterfaceNumber;
@@ -760,7 +765,7 @@ static USBH_StatusTypeDef USBH_AUDIO_FindAudioStreamingOUT(USBH_HandleTypeDef *p
   USBH_StatusTypeDef status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /* Look For AUDIOSTREAMING IN interface */
   alt_settings = 0U;
@@ -772,6 +777,11 @@ static USBH_StatusTypeDef USBH_AUDIO_FindAudioStreamingOUT(USBH_HandleTypeDef *p
       if (((phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress & 0x80U) == 0x00U) &&
           (phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].wMaxPacketSize > 0U))
       {
+        if (alt_settings >= AUDIO_MAX_AUDIO_STD_INTERFACE)
+        {
+          break;
+        }
+
         AUDIO_Handle->stream_out[alt_settings].Ep = phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress;
         AUDIO_Handle->stream_out[alt_settings].EpSize = phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].wMaxPacketSize;
         AUDIO_Handle->stream_out[alt_settings].interface = phost->device.CfgDesc.Itf_Desc[interface].bInterfaceNumber;
@@ -802,7 +812,7 @@ static USBH_StatusTypeDef USBH_AUDIO_FindHIDControl(USBH_HandleTypeDef *phost)
   USBH_StatusTypeDef status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /* Look For AUDIOCONTROL  interface */
   interface = USBH_FindInterface(phost, AC_CLASS, USB_SUBCLASS_AUDIOCONTROL, 0xFFU);
@@ -847,7 +857,7 @@ static USBH_StatusTypeDef USBH_AUDIO_ParseCSDescriptors(USBH_HandleTypeDef *phos
   uint8_t                       alt_setting;
   AUDIO_HandleTypeDef           *AUDIO_Handle;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   pdesc   = (USBH_DescHeader_t *)(void *)(phost->device.CfgDesc_Raw);
   ptr = USB_LEN_CFG_DESC;
 
@@ -913,23 +923,38 @@ static USBH_StatusTypeDef ParseCSDescriptors(AUDIO_ClassSpecificDescTypedef *cla
         break;
 
       case UAC_INPUT_TERMINAL:
-        class_desc->cs_desc.InputTerminalDesc[class_desc->InputTerminalNum++] = (AUDIO_ITDescTypeDef *)(void *)pdesc;
+        if (class_desc->InputTerminalNum < AUDIO_MAX_NUM_IN_TERMINAL)
+        {
+          class_desc->cs_desc.InputTerminalDesc[class_desc->InputTerminalNum++] = (AUDIO_ITDescTypeDef *)(void *)pdesc;
+        }
         break;
 
       case UAC_OUTPUT_TERMINAL:
-        class_desc->cs_desc.OutputTerminalDesc[class_desc->OutputTerminalNum++] = (AUDIO_OTDescTypeDef *)(void *)pdesc;
+        if (class_desc->OutputTerminalNum < AUDIO_MAX_NUM_OUT_TERMINAL)
+        {
+          class_desc->cs_desc.OutputTerminalDesc[class_desc->OutputTerminalNum++] = (AUDIO_OTDescTypeDef *)(void *)pdesc;
+        }
         break;
 
       case UAC_FEATURE_UNIT:
-        class_desc->cs_desc.FeatureUnitDesc[class_desc->FeatureUnitNum++] = (AUDIO_FeatureDescTypeDef *)(void *)pdesc;
+        if (class_desc->FeatureUnitNum < AUDIO_MAX_NUM_FEATURE_UNIT)
+        {
+          class_desc->cs_desc.FeatureUnitDesc[class_desc->FeatureUnitNum++] = (AUDIO_FeatureDescTypeDef *)(void *)pdesc;
+        }
         break;
 
       case UAC_SELECTOR_UNIT:
-        class_desc->cs_desc.SelectorUnitDesc[class_desc->SelectorUnitNum++] = (AUDIO_SelectorDescTypeDef *)(void *)pdesc;
+        if (class_desc->SelectorUnitNum < AUDIO_MAX_NUM_SELECTOR_UNIT)
+        {
+          class_desc->cs_desc.SelectorUnitDesc[class_desc->SelectorUnitNum++] = (AUDIO_SelectorDescTypeDef *)(void *)pdesc;
+        }
         break;
 
       case UAC_MIXER_UNIT:
-        class_desc->cs_desc.MixerUnitDesc[class_desc->MixerUnitNum++] = (AUDIO_MixerDescTypeDef *)(void *)pdesc;
+        if (class_desc->MixerUnitNum < AUDIO_MAX_NUM_MIXER_UNIT)
+        {
+          class_desc->cs_desc.MixerUnitDesc[class_desc->MixerUnitNum++] = (AUDIO_MixerDescTypeDef *)(void *)pdesc;
+        }
         break;
 
       default:
@@ -943,10 +968,16 @@ static USBH_StatusTypeDef ParseCSDescriptors(AUDIO_ClassSpecificDescTypedef *cla
       switch (pdesc[2])
       {
         case UAC_AS_GENERAL:
-          class_desc->as_desc[class_desc->ASNum].GeneralDesc = (AUDIO_ASGeneralDescTypeDef *)(void *)pdesc;
+          if (class_desc->ASNum < AUDIO_MAX_STREAMING_INTERFACE)
+          {
+            class_desc->as_desc[class_desc->ASNum].GeneralDesc = (AUDIO_ASGeneralDescTypeDef *)(void *)pdesc;
+          }
           break;
         case UAC_FORMAT_TYPE:
-          class_desc->as_desc[class_desc->ASNum++].FormatTypeDesc = (AUDIO_ASFormatTypeDescTypeDef *)(void *)pdesc;
+          if (class_desc->ASNum < AUDIO_MAX_STREAMING_INTERFACE)
+          {
+            class_desc->as_desc[class_desc->ASNum++].FormatTypeDesc = (AUDIO_ASFormatTypeDescTypeDef *)(void *)pdesc;
+          }
           break;
         default:
           break;
@@ -969,7 +1000,7 @@ static uint32_t USBH_AUDIO_FindLinkedUnit(USBH_HandleTypeDef *phost, uint8_t Uni
   uint8_t Index;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /* Find Feature Unit */
   for (Index = 0U; Index < AUDIO_Handle->class_desc.FeatureUnitNum; Index ++)
@@ -1033,7 +1064,7 @@ static USBH_StatusTypeDef USBH_AUDIO_BuildMicrophonePath(USBH_HandleTypeDef *pho
   AUDIO_HandleTypeDef *AUDIO_Handle;
   USBH_StatusTypeDef ret = USBH_OK;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /*Find microphone IT*/
   for (terminalIndex = 0U; terminalIndex < AUDIO_Handle->class_desc.InputTerminalNum; terminalIndex++)
@@ -1099,7 +1130,7 @@ static USBH_StatusTypeDef USBH_AUDIO_BuildHeadphonePath(USBH_HandleTypeDef *phos
   AUDIO_HandleTypeDef *AUDIO_Handle;
   USBH_StatusTypeDef ret = USBH_OK;
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   /* Find association between audio streaming and microphone */
   for (terminalIndex = 0U; terminalIndex < AUDIO_Handle->class_desc.InputTerminalNum; terminalIndex++)
@@ -1193,7 +1224,7 @@ static USBH_StatusTypeDef USBH_AC_SetCur(USBH_HandleTypeDef *phost,
   uint16_t wValue = 0U, wIndex = 0U, wLength = 0U;
   uint8_t UnitID, InterfaceNum;
   AUDIO_HandleTypeDef *AUDIO_Handle;
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef ret = USBH_OK;
 
   switch (subtype)
@@ -1257,7 +1288,7 @@ static USBH_StatusTypeDef USBH_AC_GetCur(USBH_HandleTypeDef *phost,
   uint16_t wValue = 0U, wIndex = 0U, wLength = 0U;
   uint8_t UnitID = 0U, InterfaceNum = 0U;
   AUDIO_HandleTypeDef *AUDIO_Handle;
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef ret = USBH_OK;
 
   switch (subtype)
@@ -1330,7 +1361,7 @@ static USBH_StatusTypeDef USBH_AC_GetMax(USBH_HandleTypeDef *phost,
   uint16_t wValue = 0U, wIndex = 0U, wLength = 0U;
   uint8_t UnitID = 0U, InterfaceNum = 0U;
   AUDIO_HandleTypeDef *AUDIO_Handle;
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef ret = USBH_OK;
 
   switch (subtype)
@@ -1403,7 +1434,7 @@ static USBH_StatusTypeDef USBH_AC_GetRes(USBH_HandleTypeDef *phost,
   uint16_t wValue = 0U, wIndex = 0U, wLength = 0U;
   uint8_t UnitID = 0U, InterfaceNum = 0U;
   AUDIO_HandleTypeDef *AUDIO_Handle;
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef ret = USBH_OK;
 
   switch (subtype)
@@ -1476,7 +1507,7 @@ static USBH_StatusTypeDef USBH_AC_GetMin(USBH_HandleTypeDef *phost,
   uint16_t wValue = 0U, wIndex = 0U, wLength = 0U;
   uint8_t UnitID = 0U, InterfaceNum = 0U;
   AUDIO_HandleTypeDef *AUDIO_Handle;
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   USBH_StatusTypeDef ret = USBH_OK;
 
   switch (subtype)
@@ -1580,7 +1611,7 @@ static USBH_StatusTypeDef USBH_AUDIO_InputStream(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_AUDIO_Control(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   uint16_t attribute  = 0U;
 
   switch (AUDIO_Handle->control_state)
@@ -1655,13 +1686,19 @@ static USBH_StatusTypeDef USBH_AUDIO_Control(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_AUDIO_OutputStream(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
   uint8_t *buff;
 
 
   switch (AUDIO_Handle->play_state)
   {
     case AUDIO_PLAYBACK_INIT:
+
+      if ((AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc == NULL) ||
+          (AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->bLength < 8U))
+      {
+        return USBH_FAIL;
+      }
 
       if (AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->bSamFreqType == 0U)
       {
@@ -1726,7 +1763,7 @@ static USBH_StatusTypeDef USBH_AUDIO_OutputStream(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_AUDIO_Transmit(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   switch (AUDIO_Handle->processing_state)
   {
@@ -1813,12 +1850,18 @@ USBH_StatusTypeDef USBH_AUDIO_SetFrequency(USBH_HandleTypeDef *phost,
   uint32_t             freq_min, freq_max;
   uint8_t              num_supported_freq;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_IDLE)
     {
+      if ((AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc == NULL) ||
+          (AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->bLength < 8U))
+      {
+        return USBH_FAIL;
+      }
+
       if (AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->bSamFreqType == 0U)
       {
         freq_min = LE24(AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->tSamFreq[0]);
@@ -1832,6 +1875,11 @@ USBH_StatusTypeDef USBH_AUDIO_SetFrequency(USBH_HandleTypeDef *phost,
       else
       {
         num_supported_freq = (AUDIO_Handle->class_desc.as_desc[AUDIO_Handle->headphone.asociated_as].FormatTypeDesc->bLength - 8U) / 3U;
+
+        if (num_supported_freq > AUDIO_MAX_SAMFREQ_NBR)
+        {
+          num_supported_freq = AUDIO_MAX_SAMFREQ_NBR;
+        }
 
         for (index = 0U; index < num_supported_freq; index++)
         {
@@ -1873,9 +1921,9 @@ USBH_StatusTypeDef USBH_AUDIO_Play(USBH_HandleTypeDef *phost, uint8_t *buf, uint
   USBH_StatusTypeDef Status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_IDLE)
     {
@@ -1918,9 +1966,9 @@ USBH_StatusTypeDef USBH_AUDIO_Suspend(USBH_HandleTypeDef *phost)
   USBH_StatusTypeDef Status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_PLAY)
     {
@@ -1942,9 +1990,9 @@ USBH_StatusTypeDef USBH_AUDIO_Resume(USBH_HandleTypeDef *phost)
   USBH_StatusTypeDef Status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_IDLE)
     {
@@ -1964,9 +2012,9 @@ int32_t USBH_AUDIO_GetOutOffset(USBH_HandleTypeDef *phost)
 {
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_PLAY)
     {
@@ -1988,9 +2036,9 @@ USBH_StatusTypeDef USBH_AUDIO_ChangeOutBuffer(USBH_HandleTypeDef *phost, uint8_t
   USBH_StatusTypeDef Status = USBH_FAIL;
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
-  if (phost->gState == HOST_CLASS)
+  if ((phost->pActiveClass != NULL) && (phost->gState == HOST_CLASS))
   {
-    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+    AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
     if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_PLAY)
     {
@@ -2022,7 +2070,7 @@ static USBH_StatusTypeDef USBH_AUDIO_SetControlAttribute(USBH_HandleTypeDef *pho
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   switch (attrib)
   {
@@ -2082,13 +2130,19 @@ static USBH_StatusTypeDef USBH_AUDIO_SetControlAttribute(USBH_HandleTypeDef *pho
   */
 USBH_StatusTypeDef USBH_AUDIO_SetVolume(USBH_HandleTypeDef *phost, AUDIO_VolumeCtrlTypeDef volume_ctl)
 {
-  AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_HandleTypeDef *AUDIO_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   if ((volume_ctl == VOLUME_UP) || (volume_ctl == VOLUME_DOWN))
   {
     if (phost->gState == HOST_CLASS)
     {
-      AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
       if (AUDIO_Handle->play_state == AUDIO_PLAYBACK_PLAY)
       {
         AUDIO_Handle->control_state = (volume_ctl == VOLUME_UP) ? AUDIO_CONTROL_VOLUME_UP : AUDIO_CONTROL_VOLUME_DOWN;
@@ -2114,7 +2168,7 @@ static USBH_StatusTypeDef AUDIO_SetVolume(USBH_HandleTypeDef *phost, uint8_t fea
   AUDIO_HandleTypeDef *AUDIO_Handle;
 
 
-  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClass->pData;
+  AUDIO_Handle = (AUDIO_HandleTypeDef *) phost->pActiveClassData;
 
   AUDIO_Handle->mem[0] = volume;
 

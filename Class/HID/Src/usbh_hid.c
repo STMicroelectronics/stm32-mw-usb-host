@@ -158,8 +158,8 @@ static USBH_StatusTypeDef USBH_HID_InterfaceInit(USBH_HandleTypeDef *phost)
     return USBH_FAIL;
   }
 
-  phost->pActiveClass->pData = (HID_HandleTypeDef *)USBH_malloc(sizeof(HID_HandleTypeDef));
-  HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  phost->pActiveClassData = (HID_HandleTypeDef *)USBH_malloc(sizeof(HID_HandleTypeDef));
+  HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
   if (HID_Handle == NULL)
   {
@@ -250,7 +250,7 @@ static USBH_StatusTypeDef USBH_HID_InterfaceInit(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_HID_InterfaceDeInit(USBH_HandleTypeDef *phost)
 {
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
   uint8_t interface;
   uint8_t max_ep;
   uint8_t num = 0U;
@@ -281,10 +281,10 @@ static USBH_StatusTypeDef USBH_HID_InterfaceDeInit(USBH_HandleTypeDef *phost)
     }
   }
 
-  if ((phost->pActiveClass->pData) != NULL)
+  if ((phost->pActiveClassData) != NULL)
   {
-    USBH_free(phost->pActiveClass->pData);
-    phost->pActiveClass->pData = 0U;
+    USBH_free(phost->pActiveClassData);
+    phost->pActiveClassData = 0U;
   }
 
   return USBH_OK;
@@ -302,7 +302,7 @@ static USBH_StatusTypeDef USBH_HID_ClassRequest(USBH_HandleTypeDef *phost)
 
   USBH_StatusTypeDef status         = USBH_BUSY;
   USBH_StatusTypeDef classReqStatus = USBH_BUSY;
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
   /* Switch HID state machine */
   switch (HID_Handle->ctl_state)
@@ -393,7 +393,7 @@ static USBH_StatusTypeDef USBH_HID_ClassRequest(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_HID_Process(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_OK;
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
   uint32_t XferSize;
 
   switch (HID_Handle->state)
@@ -418,7 +418,7 @@ static USBH_StatusTypeDef USBH_HID_Process(USBH_HandleTypeDef *phost)
       break;
 
     case USBH_HID_IDLE:
-      status = USBH_HID_GetReport(phost, 0x01U, 0U, HID_Handle->pData, (uint8_t)HID_Handle->length);
+      status = USBH_HID_GetReport(phost, 0x01U, 0U, HID_Handle->pData, HID_Handle->length);
 
       if (status == USBH_OK)
       {
@@ -513,7 +513,7 @@ static USBH_StatusTypeDef USBH_HID_Process(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_HID_SOFProcess(USBH_HandleTypeDef *phost)
 {
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
   if (HID_Handle->state == USBH_HID_POLL)
   {
@@ -634,7 +634,7 @@ USBH_StatusTypeDef USBH_HID_SetReport(USBH_HandleTypeDef *phost,
                                       uint8_t reportType,
                                       uint8_t reportId,
                                       uint8_t *reportBuff,
-                                      uint8_t reportLen)
+                                      uint16_t reportLen)
 {
 
   phost->Control.setup.b.bmRequestType = USB_H2D | USB_REQ_RECIPIENT_INTERFACE | \
@@ -665,7 +665,7 @@ USBH_StatusTypeDef USBH_HID_GetReport(USBH_HandleTypeDef *phost,
                                       uint8_t reportType,
                                       uint8_t reportId,
                                       uint8_t *reportBuff,
-                                      uint8_t reportLen)
+                                      uint16_t reportLen)
 {
 
   phost->Control.setup.b.bmRequestType = USB_D2H | USB_REQ_RECIPIENT_INTERFACE | \
@@ -787,7 +787,14 @@ HID_TypeTypeDef USBH_HID_GetDeviceType(USBH_HandleTypeDef *phost)
   */
 uint8_t USBH_HID_GetPollInterval(USBH_HandleTypeDef *phost)
 {
-  HID_HandleTypeDef *HID_Handle = (HID_HandleTypeDef *) phost->pActiveClass->pData;
+  HID_HandleTypeDef *HID_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return 0U;
+  }
+
+  HID_Handle = (HID_HandleTypeDef *) phost->pActiveClassData;
 
   if ((phost->gState == HOST_CLASS_REQUEST) ||
       (phost->gState == HOST_INPUT) ||

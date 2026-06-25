@@ -171,8 +171,8 @@ static USBH_StatusTypeDef USBH_CDC_InterfaceInit(USBH_HandleTypeDef *phost)
     return USBH_FAIL;
   }
 
-  phost->pActiveClass->pData = (CDC_HandleTypeDef *)USBH_malloc(sizeof(CDC_HandleTypeDef));
-  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  phost->pActiveClassData = (CDC_HandleTypeDef *)USBH_malloc(sizeof(CDC_HandleTypeDef));
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if (CDC_Handle == NULL)
   {
@@ -266,7 +266,7 @@ static USBH_StatusTypeDef USBH_CDC_InterfaceInit(USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_CDC_InterfaceDeInit(USBH_HandleTypeDef *phost)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if ((CDC_Handle->CommItf.NotifPipe) != 0U)
   {
@@ -289,10 +289,10 @@ static USBH_StatusTypeDef USBH_CDC_InterfaceDeInit(USBH_HandleTypeDef *phost)
     CDC_Handle->DataItf.OutPipe = 0U;    /* Reset the Channel as Free */
   }
 
-  if ((phost->pActiveClass->pData) != NULL)
+  if ((phost->pActiveClassData) != NULL)
   {
-    USBH_free(phost->pActiveClass->pData);
-    phost->pActiveClass->pData = 0U;
+    USBH_free(phost->pActiveClassData);
+    phost->pActiveClassData = 0U;
   }
 
   return USBH_OK;
@@ -308,7 +308,7 @@ static USBH_StatusTypeDef USBH_CDC_InterfaceDeInit(USBH_HandleTypeDef *phost)
 static USBH_StatusTypeDef USBH_CDC_ClassRequest(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status;
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   /* Issue the get line coding request */
   status = GetLineCoding(phost, &CDC_Handle->LineCoding);
@@ -339,7 +339,7 @@ static USBH_StatusTypeDef USBH_CDC_Process(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
   USBH_StatusTypeDef req_status = USBH_OK;
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   switch (CDC_Handle->state)
   {
@@ -436,7 +436,14 @@ static USBH_StatusTypeDef USBH_CDC_SOFProcess(USBH_HandleTypeDef *phost)
   */
 USBH_StatusTypeDef USBH_CDC_Stop(USBH_HandleTypeDef *phost)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if (phost->gState == HOST_CLASS)
   {
@@ -501,7 +508,14 @@ static USBH_StatusTypeDef SetLineCoding(USBH_HandleTypeDef *phost,
 USBH_StatusTypeDef USBH_CDC_SetLineCoding(USBH_HandleTypeDef *phost,
                                           CDC_LineCodingTypeDef *linecoding)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if (phost->gState == HOST_CLASS)
   {
@@ -524,7 +538,14 @@ USBH_StatusTypeDef USBH_CDC_SetLineCoding(USBH_HandleTypeDef *phost,
 USBH_StatusTypeDef USBH_CDC_GetLineCoding(USBH_HandleTypeDef *phost,
                                           CDC_LineCodingTypeDef *linecoding)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if ((phost->gState == HOST_CLASS) || (phost->gState == HOST_CLASS_REQUEST))
   {
@@ -545,7 +566,14 @@ USBH_StatusTypeDef USBH_CDC_GetLineCoding(USBH_HandleTypeDef *phost,
 uint16_t USBH_CDC_GetLastReceivedDataSize(USBH_HandleTypeDef *phost)
 {
   uint32_t dataSize;
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return 0U;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if (phost->gState == HOST_CLASS)
   {
@@ -567,7 +595,14 @@ uint16_t USBH_CDC_GetLastReceivedDataSize(USBH_HandleTypeDef *phost)
 USBH_StatusTypeDef USBH_CDC_Transmit(USBH_HandleTypeDef *phost, uint8_t *pbuff, uint32_t length)
 {
   USBH_StatusTypeDef Status = USBH_BUSY;
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if ((CDC_Handle->state == CDC_IDLE_STATE) || (CDC_Handle->state == CDC_TRANSFER_DATA))
   {
@@ -594,7 +629,14 @@ USBH_StatusTypeDef USBH_CDC_Transmit(USBH_HandleTypeDef *phost, uint8_t *pbuff, 
 USBH_StatusTypeDef USBH_CDC_Receive(USBH_HandleTypeDef *phost, uint8_t *pbuff, uint32_t length)
 {
   USBH_StatusTypeDef Status = USBH_BUSY;
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle;
+
+  if (phost->pActiveClass == NULL)
+  {
+    return USBH_FAIL;
+  }
+
+  CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
 
   if ((CDC_Handle->state == CDC_IDLE_STATE) || (CDC_Handle->state == CDC_TRANSFER_DATA))
   {
@@ -618,7 +660,7 @@ USBH_StatusTypeDef USBH_CDC_Receive(USBH_HandleTypeDef *phost, uint8_t *pbuff, u
   */
 static void CDC_ProcessTransmission(USBH_HandleTypeDef *phost)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
   USBH_URBStateTypeDef URB_Status = USBH_URB_IDLE;
 
   switch (CDC_Handle->data_tx_state)
@@ -700,7 +742,7 @@ static void CDC_ProcessTransmission(USBH_HandleTypeDef *phost)
 
 static void CDC_ProcessReception(USBH_HandleTypeDef *phost)
 {
-  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClass->pData;
+  CDC_HandleTypeDef *CDC_Handle = (CDC_HandleTypeDef *) phost->pActiveClassData;
   USBH_URBStateTypeDef URB_Status = USBH_URB_IDLE;
   uint32_t length;
 
@@ -711,7 +753,9 @@ static void CDC_ProcessReception(USBH_HandleTypeDef *phost)
 
       (void)USBH_BulkReceiveData(phost,
                                  CDC_Handle->pRxData,
-                                 CDC_Handle->DataItf.InEpSize,
+                                 (uint16_t)((CDC_Handle->RxDataLength < (uint32_t)CDC_Handle->DataItf.InEpSize)
+                                            ? CDC_Handle->RxDataLength
+                                            : (uint32_t)CDC_Handle->DataItf.InEpSize),
                                  CDC_Handle->DataItf.InPipe);
 
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
@@ -731,7 +775,8 @@ static void CDC_ProcessReception(USBH_HandleTypeDef *phost)
       {
         length = USBH_LL_GetLastXferSize(phost, CDC_Handle->DataItf.InPipe);
 
-        if (((CDC_Handle->RxDataLength - length) > 0U) && (length == CDC_Handle->DataItf.InEpSize))
+        if ((length == (uint32_t)CDC_Handle->DataItf.InEpSize) &&
+            (CDC_Handle->RxDataLength > (uint32_t)CDC_Handle->DataItf.InEpSize))
         {
           CDC_Handle->RxDataLength -= length;
           CDC_Handle->pRxData += length;

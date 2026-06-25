@@ -93,12 +93,14 @@ static void PTP_GetDevicePropValue(USBH_HandleTypeDef *phost, uint32_t *offset,
 
 static uint32_t PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
                                       MTP_PropertiesTypedef *props,
-                                      uint32_t len);
+                                      uint32_t len,
+                                      uint32_t max_props);
 
 static void PTP_BufferFullCallback(USBH_HandleTypeDef *phost);
-static void PTP_GetString(uint8_t *str, uint8_t *data, uint16_t *len);
-static uint32_t PTP_GetArray16(uint16_t *array, uint8_t *data, uint32_t offset);
-static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset);
+static uint32_t PTP_RemBytes(uint32_t base);
+static void PTP_GetString(uint8_t *str, uint8_t *data, uint16_t *len, uint16_t dest_max, uint32_t data_size);
+static uint32_t PTP_GetArray16(uint16_t *array, uint8_t *data, uint32_t offset, uint32_t array_max, uint32_t data_size);
+static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset, uint32_t array_max, uint32_t data_size);
 /**
   * @}
   */
@@ -123,11 +125,12 @@ static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset);
   */
 USBH_StatusTypeDef USBH_PTP_Init(USBH_HandleTypeDef *phost)
 {
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   /* Set state to idle to be ready for operations */
   MTP_Handle->ptp.state = PTP_IDLE;
   MTP_Handle->ptp.req_state = PTP_REQ_SEND;
+  MTP_Handle->ptp.object_max = 0U;
 
   return USBH_OK;
 }
@@ -143,7 +146,7 @@ USBH_StatusTypeDef USBH_PTP_Process(USBH_HandleTypeDef *phost)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
   USBH_URBStateTypeDef URB_Status = USBH_URB_IDLE;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
   uint32_t  len;
 
@@ -312,13 +315,44 @@ USBH_StatusTypeDef USBH_PTP_Process(USBH_HandleTypeDef *phost)
         {
           /* This is the first packet; so retrieve exact data length from payload */
           MTP_Handle->ptp.data_length = *(uint32_t *)(void *)(MTP_Handle->ptp.data_ptr);
+
+          if ((MTP_Handle->ptp.op_container.code != PTP_OC_GetObject) &&
+              (MTP_Handle->ptp.op_container.code != PTP_OC_GetPartialObject))
+          {
+            /* Non-streaming opcodes decode into the fixed data_container buffer. */
+            if (MTP_Handle->ptp.data_length > PTP_USB_BULK_HS_MAX_PACKET_LEN_READ)
+            {
+              MTP_Handle->ptp.data_length = PTP_USB_BULK_HS_MAX_PACKET_LEN_READ;
+            }
+          }
+          else if (MTP_Handle->ptp.object_max != 0U)
+          {
+            if (MTP_Handle->ptp.data_length > (MTP_Handle->ptp.object_max + PTP_USB_BULK_HDR_LEN))
+            {
+              MTP_Handle->ptp.data_length = MTP_Handle->ptp.object_max + PTP_USB_BULK_HDR_LEN;
+            }
+          }
+          else
+          {
+          	/* .. */
+          }
+
           MTP_Handle->ptp.iteration = 0U;
         }
 
         if ((len >=  MTP_Handle->DataInEpSize) && (MTP_Handle->ptp.data_length > 0U))
         {
           MTP_Handle->ptp.data_ptr += len;
-          MTP_Handle->ptp.data_length -= len;
+
+          if (len >= MTP_Handle->ptp.data_length)
+          {
+            MTP_Handle->ptp.data_length = 0U;
+          }
+          else
+          {
+            MTP_Handle->ptp.data_length -= len;
+          }
+          
           MTP_Handle->ptp.data_packet += len;
 
           if (MTP_Handle->ptp.data_packet >= PTP_USB_BULK_PAYLOAD_LEN_READ)
@@ -328,19 +362,52 @@ USBH_StatusTypeDef USBH_PTP_Process(USBH_HandleTypeDef *phost)
             MTP_Handle->ptp.iteration++;
           }
 
-          /* Continue receiving data */
-          (void)USBH_BulkReceiveData(phost,
-                                     MTP_Handle->ptp.data_ptr,
-                                     MTP_Handle->DataInEpSize,
-                                     MTP_Handle->DataInPipe);
+          if (MTP_Handle->ptp.data_length > 0U)
+          {
+            uint16_t rx_size = MTP_Handle->DataInEpSize;
+
+            if ((uint32_t)rx_size > MTP_Handle->ptp.data_length)
+            {
+              rx_size = (uint16_t)MTP_Handle->ptp.data_length;
+            }
+
+            /* Bytes are still expected: continue receiving data. For opcodes
+               whose buffer is the fixed-size PTP data container (the callback
+               does not redirect data_ptr to a larger object buffer), the
+               clamped data_length guarantees data_ptr stays inside the
+               container. */
+            (void)USBH_BulkReceiveData(phost,
+                                       MTP_Handle->ptp.data_ptr,
+                                       MTP_Handle->DataInEpSize,
+                                       MTP_Handle->DataInPipe);
 
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
-          phost->NakTimer = phost->Timer;
+            phost->NakTimer = phost->Timer;
 #endif  /* defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U) */
+          }
+          else
+          {
+            /* All declared data has been received: do not post another IN
+               transfer (which would write past the data container for
+               non-streaming opcodes). Proceed to the response phase. */
+            MTP_Handle->ptp.state = PTP_RESPONSE_STATE;
+
+#if (USBH_USE_OS == 1U)
+            USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
+#endif /* (USBH_USE_OS == 1U) */
+          }
         }
         else
         {
-          MTP_Handle->ptp.data_length -= len;
+          if (len >= MTP_Handle->ptp.data_length)
+          {
+            MTP_Handle->ptp.data_length = 0U;
+          }
+          else
+          {
+            MTP_Handle->ptp.data_length -= len;
+          }
+
           MTP_Handle->ptp.state = PTP_RESPONSE_STATE;
 
 #if (USBH_USE_OS == 1U)
@@ -457,7 +524,7 @@ USBH_StatusTypeDef USBH_PTP_Process(USBH_HandleTypeDef *phost)
 USBH_StatusTypeDef USBH_PTP_SendRequest(USBH_HandleTypeDef *phost, PTP_ContainerTypedef  *req)
 {
   USBH_StatusTypeDef status = USBH_OK;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   /* Clear PTP Data container*/
   (void)USBH_memset(&(MTP_Handle->ptp.op_container), 0, sizeof(PTP_OpContainerTypedef));
@@ -485,7 +552,7 @@ USBH_StatusTypeDef USBH_PTP_SendRequest(USBH_HandleTypeDef *phost, PTP_Container
 USBH_StatusTypeDef USBH_PTP_GetResponse(USBH_HandleTypeDef *phost, PTP_ContainerTypedef  *resp)
 {
   USBH_StatusTypeDef status = USBH_OK;
-  MTP_HandleTypeDef  *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef  *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
   /* build an appropriate PTPContainer */
   resp->Code = MTP_Handle->ptp.resp_container.code;
@@ -507,9 +574,9 @@ USBH_StatusTypeDef USBH_PTP_GetResponse(USBH_HandleTypeDef *phost, PTP_Container
   */
 static void PTP_BufferFullCallback(USBH_HandleTypeDef *phost)
 {
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
 
-  switch (MTP_Handle->ptp.data_container.code)
+  switch (MTP_Handle->ptp.op_container.code)
   {
     case PTP_OC_GetDeviceInfo:
       PTP_DecodeDeviceInfo(phost, &(MTP_Handle->info.devinfo));
@@ -541,8 +608,6 @@ static void PTP_BufferFullCallback(USBH_HandleTypeDef *phost)
 
     default:
       break;
-
-
   }
 }
 
@@ -555,7 +620,7 @@ static void PTP_BufferFullCallback(USBH_HandleTypeDef *phost)
   */
 static void PTP_DecodeDeviceInfo(USBH_HandleTypeDef *phost, PTP_DeviceInfoTypedef *dev_info)
 {
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint32_t totallen;
   uint16_t len;
@@ -569,41 +634,56 @@ static void PTP_DecodeDeviceInfo(USBH_HandleTypeDef *phost, PTP_DeviceInfoTypede
     dev_info->StandardVersion = LE16(&data[PTP_di_StandardVersion]);
     dev_info->VendorExtensionID = LE32(&data[PTP_di_VendorExtensionID]);
     dev_info->VendorExtensionVersion = LE16(&data[PTP_di_VendorExtensionVersion]);
-    PTP_GetString(dev_info->VendorExtensionDesc, &data[PTP_di_VendorExtensionDesc], &len);
+    PTP_GetString(dev_info->VendorExtensionDesc, &data[PTP_di_VendorExtensionDesc], &len, PTP_MAX_STR_SIZE,
+                  PTP_RemBytes(PTP_di_VendorExtensionDesc));
 
     totallen = (uint32_t)(len * 2U) + 1U;
     dev_info->FunctionalMode = LE16(&data[PTP_di_FunctionalMode + totallen]);
     dev_info->OperationsSupported_len = PTP_GetArray16((uint16_t *)(void *)&dev_info->OperationsSupported,
-                                                       data, PTP_di_OperationsSupported + totallen);
+                                                       data, PTP_di_OperationsSupported + totallen,
+                                                       PTP_SUPPORTED_OPERATIONS_NBR,
+                                                       PTP_USB_BULK_PAYLOAD_LEN_READ);
 
     totallen = totallen + (dev_info->OperationsSupported_len * sizeof(uint16_t)) + sizeof(uint32_t);
     dev_info->EventsSupported_len = PTP_GetArray16((uint16_t *)(void *)&dev_info->EventsSupported,
-                                                   data, PTP_di_OperationsSupported + totallen);
+                                                   data, PTP_di_OperationsSupported + totallen,
+                                                   PTP_SUPPORTED_EVENTS_NBR,
+                                                   PTP_USB_BULK_PAYLOAD_LEN_READ);
 
     totallen = totallen + (dev_info->EventsSupported_len * sizeof(uint16_t)) + sizeof(uint32_t);
     dev_info->DevicePropertiesSupported_len = PTP_GetArray16((uint16_t *)(void *)&dev_info->DevicePropertiesSupported,
-                                                             data, PTP_di_OperationsSupported + totallen);
+                                                             data, PTP_di_OperationsSupported + totallen,
+                                                             PTP_SUPPORTED_PROPRIETIES_NBR,
+                                                             PTP_USB_BULK_PAYLOAD_LEN_READ);
 
     totallen = totallen + (dev_info->DevicePropertiesSupported_len * sizeof(uint16_t)) + sizeof(uint32_t);
 
     dev_info->CaptureFormats_len = PTP_GetArray16((uint16_t *)(void *)&dev_info->CaptureFormats,
-                                                  data, PTP_di_OperationsSupported + totallen);
+                                                  data, PTP_di_OperationsSupported + totallen,
+                                                  PTP_CAPTURE_FORMATS_NBR,
+                                                  PTP_USB_BULK_PAYLOAD_LEN_READ);
 
     totallen = totallen + (dev_info->CaptureFormats_len * sizeof(uint16_t)) + sizeof(uint32_t);
     dev_info->ImageFormats_len =  PTP_GetArray16((uint16_t *)(void *)&dev_info->ImageFormats,
-                                                 data, PTP_di_OperationsSupported + totallen);
+                                                 data, PTP_di_OperationsSupported + totallen,
+                                                 PTP_IMAGE_FORMATS_NBR,
+                                                 PTP_USB_BULK_PAYLOAD_LEN_READ);
 
     totallen = totallen + (dev_info->ImageFormats_len * sizeof(uint16_t)) + sizeof(uint32_t);
-    PTP_GetString(dev_info->Manufacturer, &data[PTP_di_OperationsSupported + totallen], &len);
+    PTP_GetString(dev_info->Manufacturer, &data[PTP_di_OperationsSupported + totallen], &len, PTP_MAX_STR_SIZE,
+                  PTP_RemBytes(PTP_di_OperationsSupported + totallen));
 
     totallen += (uint32_t)(len * 2U) + 1U;
-    PTP_GetString(dev_info->Model, &data[PTP_di_OperationsSupported + totallen], &len);
+    PTP_GetString(dev_info->Model, &data[PTP_di_OperationsSupported + totallen], &len, PTP_MAX_STR_SIZE,
+                  PTP_RemBytes(PTP_di_OperationsSupported + totallen));
 
     totallen += (uint32_t)(len * 2U) + 1U;
-    PTP_GetString(dev_info->DeviceVersion, &data[PTP_di_OperationsSupported + totallen], &len);
+    PTP_GetString(dev_info->DeviceVersion, &data[PTP_di_OperationsSupported + totallen], &len, PTP_MAX_STR_SIZE,
+                  PTP_RemBytes(PTP_di_OperationsSupported + totallen));
 
     totallen += (uint32_t)(len * 2U) + 1U;
-    PTP_GetString(dev_info->SerialNumber, &data[PTP_di_OperationsSupported + totallen], &len);
+    PTP_GetString(dev_info->SerialNumber, &data[PTP_di_OperationsSupported + totallen], &len, PTP_MAX_STR_SIZE,
+                  PTP_RemBytes(PTP_di_OperationsSupported + totallen));
   }
 }
 
@@ -616,10 +696,11 @@ static void PTP_DecodeDeviceInfo(USBH_HandleTypeDef *phost, PTP_DeviceInfoTypede
   */
 static void PTP_GetStorageIDs(USBH_HandleTypeDef *phost, PTP_StorageIDsTypedef *stor_ids)
 {
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
 
-  stor_ids->n = PTP_GetArray32(stor_ids->Storage, data, 0U);
+  stor_ids->n = PTP_GetArray32(stor_ids->Storage, data, 0U, PTP_MAX_STORAGE_UNITS_NBR,
+                               PTP_USB_BULK_PAYLOAD_LEN_READ);
 }
 
 
@@ -635,7 +716,7 @@ static void PTP_GetStorageInfo(USBH_HandleTypeDef *phost, uint32_t storage_id, P
   /* Prevent unused argument(s) compilation warning */
   UNUSED(storage_id);
 
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint16_t len;
 
@@ -646,8 +727,10 @@ static void PTP_GetStorageInfo(USBH_HandleTypeDef *phost, uint32_t storage_id, P
   stor_info->FreeSpaceInBytes = LE64(&data[PTP_si_FreeSpaceInBytes]);
   stor_info->FreeSpaceInImages = LE32(&data[PTP_si_FreeSpaceInImages]);
 
-  PTP_GetString(stor_info->StorageDescription, &data[PTP_si_StorageDescription], &len);
-  PTP_GetString(stor_info->VolumeLabel, &data[PTP_si_StorageDescription + (len * 2U) + 1U], &len);
+  PTP_GetString(stor_info->StorageDescription, &data[PTP_si_StorageDescription], &len, PTP_MAX_STR_SIZE,
+                PTP_RemBytes(PTP_si_StorageDescription));
+  PTP_GetString(stor_info->VolumeLabel, &data[PTP_si_StorageDescription + (len * 2U) + 1U], &len, PTP_MAX_STR_SIZE,
+                PTP_RemBytes((uint32_t)PTP_si_StorageDescription + ((uint32_t)len * 2U) + 1U));
 }
 
 /**
@@ -659,7 +742,7 @@ static void PTP_GetStorageInfo(USBH_HandleTypeDef *phost, uint32_t storage_id, P
   */
 static void PTP_GetObjectInfo(USBH_HandleTypeDef *phost, PTP_ObjectInfoTypedef *object_info)
 {
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint16_t filenamelen;
 
@@ -684,7 +767,8 @@ static void PTP_GetObjectInfo(USBH_HandleTypeDef *phost, PTP_ObjectInfoTypedef *
   object_info->AssociationType = LE16(&data[PTP_oi_AssociationType]);
   object_info->AssociationDesc = LE32(&data[PTP_oi_AssociationDesc]);
   object_info->SequenceNumber = LE32(&data[PTP_oi_SequenceNumber]);
-  PTP_GetString(object_info->Filename, &data[PTP_oi_filenamelen], &filenamelen);
+  PTP_GetString(object_info->Filename, &data[PTP_oi_filenamelen], &filenamelen, PTP_MAX_STR_SIZE,
+                PTP_RemBytes((uint32_t)(data - MTP_Handle->ptp.data_container.payload.data) + PTP_oi_filenamelen));
 }
 
 
@@ -697,9 +781,12 @@ static void PTP_GetObjectInfo(USBH_HandleTypeDef *phost, PTP_ObjectInfoTypedef *
   */
 static void PTP_GetObjectPropDesc(USBH_HandleTypeDef *phost, PTP_ObjectPropDescTypeDef *opd, uint32_t opdlen)
 {
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint32_t offset = 0U, i;
+  uint32_t limit;
+
+  limit = (opdlen < PTP_USB_BULK_PAYLOAD_LEN_READ) ? opdlen : PTP_USB_BULK_PAYLOAD_LEN_READ;
 
   opd->ObjectPropertyCode = LE16(&data[PTP_opd_ObjectPropertyCode]);
   opd->DataType = LE16(&data[PTP_opd_DataType]);
@@ -707,6 +794,12 @@ static void PTP_GetObjectPropDesc(USBH_HandleTypeDef *phost, PTP_ObjectPropDescT
 
   offset = PTP_opd_FactoryDefaultValue;
   PTP_GetDevicePropValue(phost, &offset, opdlen, &opd->FactoryDefaultValue, opd->DataType);
+
+  /* GroupCode (4) + FormFlag (1) must fit in the buffer before being read. */
+  if ((offset > limit) || ((limit - offset) < (sizeof(uint32_t) + sizeof(uint8_t))))
+  {
+    return;
+  }
 
   opd->GroupCode = LE32(&data[offset]);
   offset += sizeof(uint32_t);
@@ -724,11 +817,22 @@ static void PTP_GetObjectPropDesc(USBH_HandleTypeDef *phost, PTP_ObjectPropDescT
 
     case PTP_OPFF_Enumeration:
 
+      /* NumberOfValues (2) must fit before being read. */
+      if ((offset > limit) || ((limit - offset) < sizeof(uint16_t)))
+      {
+        break;
+      }
+
       opd->FORM.Enum.NumberOfValues = LE16(&data[offset]);
       offset += sizeof(uint16_t);
 
       for (i = 0U; i < opd->FORM.Enum.NumberOfValues; i++)
       {
+        if (i >= PTP_SUPPORTED_PROPRIETIES_NBR)
+        {
+          break;
+        }
+
         PTP_GetDevicePropValue(phost, &offset, opdlen, &opd->FORM.Enum.SupportedValue[i], opd->DataType);
       }
       break;
@@ -750,12 +854,51 @@ static void PTP_GetDevicePropValue(USBH_HandleTypeDef *phost,
                                    PTP_PropertyValueTypedef *value,
                                    uint16_t datatype)
 {
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(total);
-
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint16_t len;
+  uint32_t limit;
+  uint32_t width;
+
+  limit = (total < PTP_USB_BULK_PAYLOAD_LEN_READ) ? total : PTP_USB_BULK_PAYLOAD_LEN_READ;
+
+  switch (datatype)
+  {
+    case PTP_DTC_INT8:
+    case PTP_DTC_UINT8:
+      width = 1U;
+      break;
+    case PTP_DTC_INT16:
+    case PTP_DTC_UINT16:
+      width = 2U;
+      break;
+    case PTP_DTC_INT32:
+    case PTP_DTC_UINT32:
+      width = 4U;
+      break;
+    case PTP_DTC_INT64:
+    case PTP_DTC_UINT64:
+      width = 8U;
+      break;
+    case PTP_DTC_UINT128:
+    case PTP_DTC_INT128:
+      width = 16U;
+      break;
+    default:
+      width = 0U;
+      break;
+  }
+
+  /* For fixed-width scalar types, stop if the read would exceed the buffer. */
+  if ((datatype != PTP_DTC_STR) && (width != 0U))
+  {
+    if ((*offset > limit) || ((limit - *offset) < width))
+    {
+      *offset = limit;
+      return;
+    }
+  }
+
   switch (datatype)
   {
     case PTP_DTC_INT8:
@@ -800,7 +943,8 @@ static void PTP_GetDevicePropValue(USBH_HandleTypeDef *phost,
 
     case PTP_DTC_STR:
 
-      PTP_GetString((uint8_t *)(void *)value->str, (uint8_t *) & (data[*offset]), &len);
+      PTP_GetString((uint8_t *)(void *)value->str, (uint8_t *) & (data[*offset]), &len, PTP_MAX_STR_SIZE,
+                    (limit > *offset) ? (limit - *offset) : 0U);
       *offset += (uint32_t)(len * 2U) + 1U;
       break;
     default:
@@ -818,9 +962,10 @@ static void PTP_GetDevicePropValue(USBH_HandleTypeDef *phost,
   */
 static uint32_t PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
                                       MTP_PropertiesTypedef *props,
-                                      uint32_t len)
+                                      uint32_t len,
+                                      uint32_t max_props)
 {
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
   uint32_t prop_count;
   uint32_t offset = 0U, i;
@@ -832,23 +977,43 @@ static uint32_t PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
     return 0U;
   }
 
+  if (len < sizeof(uint32_t))
+  {
+    return 0U;
+  }
+
+  if (prop_count > max_props)
+  {
+    prop_count = max_props;
+  }
+
   data += sizeof(uint32_t);
   len -= sizeof(uint32_t);
 
   for (i = 0U; i < prop_count; i++)
   {
-    if (len <= 0U)
+    if (len < sizeof(uint32_t))
     {
-      return 0U;
+      return prop_count;
     }
 
     props[i].ObjectHandle = LE32(data);
     data += sizeof(uint32_t);
     len -= sizeof(uint32_t);
 
+    if (len < sizeof(uint16_t))
+    {
+      return prop_count;
+    }
+
     props[i].property = LE16(data);
     data += sizeof(uint16_t);
     len -= sizeof(uint16_t);
+
+    if (len < sizeof(uint16_t))
+    {
+      return prop_count;
+    }
 
     props[i].datatype = LE16(data);
     data += sizeof(uint16_t);
@@ -858,6 +1023,11 @@ static uint32_t PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
 
     PTP_GetDevicePropValue(phost, &offset, len, &props[i].propval, props[i].datatype);
 
+    if (offset > len)
+    {
+      return prop_count;
+    }
+    
     data += offset;
     len -= offset;
   }
@@ -866,20 +1036,58 @@ static uint32_t PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
 }
 
 /**
+  * @brief  PTP_RemBytes
+  *         Returns the number of valid bytes remaining in the PTP payload
+  *         data buffer from the given base offset (saturating at 0).
+  * @param  base: byte offset into payload.data
+  * @retval remaining byte count
+  */
+static uint32_t PTP_RemBytes(uint32_t base)
+{
+  return (base < PTP_USB_BULK_PAYLOAD_LEN_READ) ? (PTP_USB_BULK_PAYLOAD_LEN_READ - base) : 0U;
+}
+
+/**
   * @brief  PTP_GetString
-  *         Gets SCII String from.
-  * @param  str: ascii string
-  * @param  data: Device info structure
+  *         Gets ASCII String from device payload.
+  * @param  str: destination ascii string
+  * @param  data: pointer to the source (length-prefixed) UNICODE string
+  * @param  len: returned device-reported string length (chars)
+  * @param  dest_max: capacity of the destination buffer
+  * @param  data_size: number of valid source bytes available from data
   * @retval None
   */
-static void PTP_GetString(uint8_t *str, uint8_t *data, uint16_t *len)
+static void PTP_GetString(uint8_t *str, uint8_t *data, uint16_t *len, uint16_t dest_max, uint32_t data_size)
 {
   uint16_t strlength;
   uint16_t idx;
+  uint32_t maxsrc;
+
+  *len = 0U;
+
+  /* Need at least the 1-byte length prefix inside the source buffer. */
+  if (data_size == 0U)
+  {
+    *str = 0U;
+    return;
+  }
 
   *len = data[0];
   strlength = (uint16_t)(2U * (uint32_t)data[0]);
-  data ++; /* Adjust the offset ignoring the String Len */
+  data++; /* Adjust the offset ignoring the String Len */
+
+  /* Bound against destination capacity. */
+  if (strlength > (dest_max - 1U))
+  {
+    strlength = (uint16_t)(dest_max - 1U);
+  }
+
+  /* Bound against the bytes actually available in the source buffer. */
+  maxsrc = data_size - 1U;
+  if ((uint32_t)strlength > maxsrc)
+  {
+    strlength = (uint16_t)maxsrc;
+  }
 
   for (idx = 0U; idx < strlength; idx += 2U)
   {
@@ -891,45 +1099,91 @@ static void PTP_GetString(uint8_t *str, uint8_t *data, uint16_t *len)
 }
 
 /**
-  * @brief  PTP_GetString
-  *         Gets SCII String from.
-  * @param  str: ascii string
-  * @param  data: Device info structure
-  * @retval None
+  * @brief  PTP_GetArray16
+  *         Decode a length-prefixed array of 16-bit values from the payload.
+  * @param  array: destination array
+  * @param  data: source payload buffer
+  * @param  offset: byte offset of the array count prefix in data
+  * @param  array_max: capacity of the destination array
+  * @param  data_size: number of valid bytes in data
+  * @retval number of elements written
   */
-
-static uint32_t PTP_GetArray16(uint16_t *array, uint8_t *data, uint32_t offset)
+static uint32_t PTP_GetArray16(uint16_t *array, uint8_t *data, uint32_t offset, uint32_t array_max, uint32_t data_size)
 {
   uint32_t size, idx = 0U;
+  uint32_t src;
+
+  /* Need the 4-byte count prefix inside the buffer. */
+  if ((offset > data_size) || ((data_size - offset) < sizeof(uint32_t)))
+  {
+    return 0U;
+  }
 
   size = LE32(&data[offset]);
+
+  if (size > array_max)
+  {
+    size = array_max;
+  }
+
   while (size > idx)
   {
-    array[idx] = (uint16_t)data[offset + (sizeof(uint16_t) * (idx + 2U))];
+    src = offset + (sizeof(uint16_t) * (idx + 2U));
+
+    /* Stop before reading past the end of the source buffer. */
+    if ((src + sizeof(uint16_t)) > data_size)
+    {
+      break;
+    }
+
+    array[idx] = (uint16_t)data[src];
     idx++;
   }
-  return size;
+  return idx;
 }
 
 /**
-  * @brief  PTP_GetString
-  *         Gets SCII String from.
-  * @param  str: ascii string
-  * @param  data: Device info structure
-  * @retval None
+  * @brief  PTP_GetArray32
+  *         Decode a length-prefixed array of 32-bit values from the payload.
+  * @param  array: destination array
+  * @param  data: source payload buffer
+  * @param  offset: byte offset of the array count prefix in data
+  * @param  array_max: capacity of the destination array
+  * @param  data_size: number of valid bytes in data
+  * @retval number of elements written
   */
-
-static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset)
+static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset, uint32_t array_max, uint32_t data_size)
 {
   uint32_t size, idx = 0U;
+  uint32_t src;
+
+  /* Need the 4-byte count prefix inside the buffer. */
+  if ((offset > data_size) || ((data_size - offset) < sizeof(uint32_t)))
+  {
+    return 0U;
+  }
 
   size = LE32(&data[offset]);
+
+  if (size > array_max)
+  {
+    size = array_max;
+  }
+
   while (size > idx)
   {
-    array[idx] = LE32(&data[offset + (sizeof(uint32_t) * (idx + 1U))]);
+    src = offset + (sizeof(uint32_t) * (idx + 1U));
+
+    /* Stop before reading past the end of the source buffer. */
+    if ((src + sizeof(uint32_t)) > data_size)
+    {
+      break;
+    }
+
+    array[idx] = LE32(&data[src]);
     idx++;
   }
-  return size;
+  return idx;
 }
 
 /*******************************************************************************
@@ -947,7 +1201,7 @@ static uint32_t PTP_GetArray32(uint32_t *array, uint8_t *data, uint32_t offset)
 USBH_StatusTypeDef USBH_PTP_OpenSession(USBH_HandleTypeDef *phost, uint32_t session)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1000,7 +1254,7 @@ USBH_StatusTypeDef USBH_PTP_GetDevicePropDesc(USBH_HandleTypeDef *phost,
                                               PTP_DevicePropDescTypdef *devicepropertydesc)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
   uint8_t *data = MTP_Handle->ptp.data_container.payload.data;
 
@@ -1061,7 +1315,7 @@ USBH_StatusTypeDef USBH_PTP_GetDevicePropDesc(USBH_HandleTypeDef *phost,
 USBH_StatusTypeDef USBH_PTP_GetDeviceInfo(USBH_HandleTypeDef *phost, PTP_DeviceInfoTypedef *dev_info)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1118,7 +1372,7 @@ USBH_StatusTypeDef USBH_PTP_GetDeviceInfo(USBH_HandleTypeDef *phost, PTP_DeviceI
 USBH_StatusTypeDef USBH_PTP_GetStorageIds(USBH_HandleTypeDef *phost, PTP_StorageIDsTypedef *storage_ids)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1177,7 +1431,7 @@ USBH_StatusTypeDef USBH_PTP_GetStorageInfo(USBH_HandleTypeDef *phost,
                                            PTP_StorageInfoTypedef *storage_info)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1239,7 +1493,7 @@ USBH_StatusTypeDef USBH_PTP_GetNumObjects(USBH_HandleTypeDef *phost,
                                           uint32_t *numobs)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1299,7 +1553,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectHandles(USBH_HandleTypeDef *phost,
                                              PTP_ObjectHandlesTypedef *objecthandles)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1341,7 +1595,8 @@ USBH_StatusTypeDef USBH_PTP_GetObjectHandles(USBH_HandleTypeDef *phost,
       {
         objecthandles->n = PTP_GetArray32(objecthandles->Handler,
                                           MTP_Handle->ptp.data_container.payload.data,
-                                          0U);
+                                          0U, PTP_MAX_HANDLER_NBR,
+                                          PTP_USB_BULK_PAYLOAD_LEN_READ);
       }
       break;
 
@@ -1363,7 +1618,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectInfo(USBH_HandleTypeDef *phost,
                                           PTP_ObjectInfoTypedef *object_info)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1423,7 +1678,7 @@ USBH_StatusTypeDef USBH_PTP_DeleteObject(USBH_HandleTypeDef *phost,
                                          uint32_t objectformatcode)
 {
   USBH_StatusTypeDef   status = USBH_BUSY;
-  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef    *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef  ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1475,7 +1730,7 @@ USBH_StatusTypeDef USBH_PTP_GetObject(USBH_HandleTypeDef *phost,
                                       uint8_t *object)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1491,6 +1746,7 @@ USBH_StatusTypeDef USBH_PTP_GetObject(USBH_HandleTypeDef *phost,
 
       /* set object control params */
       MTP_Handle->ptp.object_ptr = object;
+      MTP_Handle->ptp.object_max = 0U;
 
       /* Fill operation request params */
       ptp_container.Code = PTP_OC_GetObject;
@@ -1521,10 +1777,24 @@ USBH_StatusTypeDef USBH_PTP_GetObject(USBH_HandleTypeDef *phost,
         /* first packet is in the PTP data payload buffer */
         if (MTP_Handle->ptp.iteration == 0U)
         {
-          /* copy it to object */
+          uint32_t payload_len = MTP_Handle->ptp.data_container.length;
+          if (payload_len > PTP_USB_BULK_HDR_LEN)
+          {
+            payload_len -= PTP_USB_BULK_HDR_LEN;
+          }
+          else
+          {
+            payload_len = 0U;
+          }
+          
+          if (payload_len > PTP_USB_BULK_PAYLOAD_LEN_READ)
+          {
+            payload_len = PTP_USB_BULK_PAYLOAD_LEN_READ;
+          }
+          
           (void)USBH_memcpy(MTP_Handle->ptp.object_ptr,
                             MTP_Handle->ptp.data_container.payload.data,
-                            PTP_USB_BULK_PAYLOAD_LEN_READ);
+                            payload_len);
         }
       }
       break;
@@ -1550,7 +1820,7 @@ USBH_StatusTypeDef USBH_PTP_GetPartialObject(USBH_HandleTypeDef *phost,
                                              uint32_t *len)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1565,6 +1835,7 @@ USBH_StatusTypeDef USBH_PTP_GetPartialObject(USBH_HandleTypeDef *phost,
 
       /* set object control params */
       MTP_Handle->ptp.object_ptr = object;
+      MTP_Handle->ptp.object_max = maxbytes;
 
       /* Fill operation request params */
       ptp_container.Code = PTP_OC_GetPartialObject;
@@ -1597,9 +1868,20 @@ USBH_StatusTypeDef USBH_PTP_GetPartialObject(USBH_HandleTypeDef *phost,
         /* first packet is in the PTP data payload buffer */
         if (MTP_Handle->ptp.iteration == 0U)
         {
+          uint32_t copy_len = *len;
+          if (copy_len > PTP_USB_BULK_PAYLOAD_LEN_READ)
+          {
+            copy_len = PTP_USB_BULK_PAYLOAD_LEN_READ;
+          }
+
+          if (copy_len > maxbytes)
+          {
+            copy_len = maxbytes;
+          }
+
           /* copy it to object */
           (void)USBH_memcpy(MTP_Handle->ptp.object_ptr,
-                            MTP_Handle->ptp.data_container.payload.data, *len);
+                            MTP_Handle->ptp.data_container.payload.data, copy_len);
         }
       }
       break;
@@ -1623,7 +1905,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectPropsSupported(USBH_HandleTypeDef *phost,
                                                     uint16_t *props)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1661,7 +1943,9 @@ USBH_StatusTypeDef USBH_PTP_GetObjectPropsSupported(USBH_HandleTypeDef *phost,
 
       if (status == USBH_OK)
       {
-        *propnum = PTP_GetArray16(props, MTP_Handle->ptp.data_container.payload.data, 0U);
+        *propnum = PTP_GetArray16(props, MTP_Handle->ptp.data_container.payload.data, 0U,
+                                  PTP_SUPPORTED_PROPRIETIES_NBR,
+                                  PTP_USB_BULK_PAYLOAD_LEN_READ);
       }
       break;
 
@@ -1684,7 +1968,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectPropDesc(USBH_HandleTypeDef *phost,
                                               PTP_ObjectPropDescTypeDef *opd)
 {
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1750,7 +2034,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
   UNUSED(nrofprops);
 
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
@@ -1797,7 +2081,7 @@ USBH_StatusTypeDef USBH_PTP_GetObjectPropList(USBH_HandleTypeDef *phost,
 
       if (status == USBH_OK)
       {
-        (void)PTP_GetObjectPropList(phost, pprops,  MTP_Handle->ptp.data_length);
+        (void)PTP_GetObjectPropList(phost, pprops, MTP_Handle->ptp.data_length, PTP_MAX_NUM_PROPS);
       }
       break;
 
@@ -1823,7 +2107,7 @@ USBH_StatusTypeDef USBH_PTP_SendObject(USBH_HandleTypeDef *phost,
   UNUSED(handle);
 
   USBH_StatusTypeDef status = USBH_BUSY;
-  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClass->pData;
+  MTP_HandleTypeDef *MTP_Handle = (MTP_HandleTypeDef *)phost->pActiveClassData;
   PTP_ContainerTypedef ptp_container;
 
   switch (MTP_Handle->ptp.req_state)
